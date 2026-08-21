@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Egg Inc Leaderboard Archive</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <p class="eyebrow">Historical archive</p>
+      <h1>Egg Inc Leaderboard</h1>
+      <p class="subtitle">
+        Explore archived all-time contract scores and rankings.
+      </p>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="controls-card">
+      <div class="date-control">
+        <label for="date-select">Leaderboard date</label>
+        <select id="date-select">
+          <option>Loading dates...</option>
+        </select>
+      </div>
+
+      <div class="navigation-buttons">
+        <button id="previous-date" type="button">← Previous</button>
+        <button id="next-date" type="button">Next →</button>
+      </div>
+    </section>
+
+    <section class="search-card">
+      <div>
+        <p class="eyebrow">Player lookup</p>
+        <h2>Search player history</h2>
+        <p class="search-help">
+          Search players recorded in the archived snapshots.
+        </p>
+      </div>
+
+      <div class="search-controls">
+        <label for="player-search">Player name</label>
+        <input
+          id="player-search"
+          type="search"
+          placeholder="Enter a player name..."
+          autocomplete="off"
+        >
+        <button id="clear-search" type="button">Clear</button>
+      </div>
+
+<p id="search-status" class="status"></p>
+
+<div id="player-summary" class="player-summary hidden"></div>
+
+      <div id="score-chart-container" class="score-chart-container hidden">
+        <div class="chart-heading">
+          <div>
+            <p class="eyebrow">Progression</p>
+            <h3 id="chart-title">Score over time</h3>
+          </div>
+
+          <div class="chart-controls">
+            <button
+              id="score-chart-button"
+              class="chart-toggle active"
+              type="button"
+            >
+              Score
+            </button>
+
+            <button
+              id="rank-chart-button"
+              class="chart-toggle"
+              type="button"
+            >
+              Rank
+            </button>
+          </div>
+
+          <p id="chart-status" class="status"></p>
+        </div>
+
+  <div class="chart-wrapper">
+    <canvas id="score-chart"></canvas>
+  </div>
+</div>
+
+      <div class="table-wrapper">
+        <table id="search-results-table" class="hidden">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Rank</th>
+              <th>Player</th>
+              <th>Total score</th>
+            </tr>
+          </thead>
+          <tbody id="search-results-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="leaderboard-card">
+      <div class="leaderboard-heading">
+        <div>
+          <p class="eyebrow">Snapshot</p>
+          <h2 id="selected-date">Loading...</h2>
+        </div>
+
+        <p id="status" class="status">Loading...</p>
+      </div>
+
+      <div class="notice">
+        This archive contains observed entries from screenshots. A snapshot
+        may be incomplete.
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Player</th>
+              <th>Total score</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
