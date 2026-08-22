@@ -338,7 +338,22 @@ function renderScoreChart(playerName, matches) {
   const ranks = matches.map(match => Number(match.rank));
 
   const isScoreMode = chartMode === "score";
-  const values = isScoreMode ? scores : ranks;
+
+  // For rank mode, transform ranks so 1-100 takes up 80% of graph height
+  // and anything below 100 scales into the remaining 20%
+  const transformRankForDisplay = (rank, maxRank) => {
+    // Top 80% (ranks 1-100): scale linearly from 100 to 20
+    if (rank <= 100) {
+      return 100 - (rank - 1) * (80 / 99);
+    }
+    // Bottom 20% (ranks > 100): scale linearly from 20 to 0
+    return 20 - ((rank - 100) / (maxRank - 100)) * 20;
+  };
+
+  const maxRank = Math.max(...ranks);
+  const displayRanks = ranks.map(rank => transformRankForDisplay(rank, maxRank));
+
+  const values = isScoreMode ? scores : displayRanks;
 
   const minimumValue = Math.min(...values);
   const maximumValue = Math.max(...values);
@@ -355,10 +370,6 @@ function renderScoreChart(playerName, matches) {
   const chartMaximum = isScoreMode
     ? maximumValue + padding
     : Math.ceil(maximumValue + padding);
-
-  // For rank mode, use logarithmic scale if there's a large spread
-  // This prevents lower ranks (like 1-100) from being squished when player started much lower
-  const useLogScaleForRank = !isScoreMode && (maximumValue / Math.max(minimumValue, 1) > 3);
 
   if (scoreChart) {
     scoreChart.destroy();
@@ -442,31 +453,29 @@ function renderScoreChart(playerName, matches) {
           grid: {
             color: "rgba(142, 157, 178, 0.14)"
           }
-        } : useLogScaleForRank ? {
-          type: "logarithmic",
-          reverse: true,
-          ticks: {
-            color: "#8e9db2",
-            // Define "nice" rank values to display on axis
-            values: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2500, 5000],
-            callback: value => {
-              return formatRank(value);
-            }
-          },
-          grid: {
-            color: "rgba(142, 157, 178, 0.14)"
-          }
         } : {
           min: chartMinimum,
           max: chartMaximum,
-          reverse: true,
+          reverse: false,
           ticks: {
             color: "#8e9db2",
-            callback: value => {
-              if (!Number.isInteger(value)) {
-                return "";
+            // Show ticks at key rank boundaries (mapped to display values)
+            values: [
+              transformRankForDisplay(1, maxRank),
+              transformRankForDisplay(10, maxRank),
+              transformRankForDisplay(100, maxRank),
+              transformRankForDisplay(Math.min(1000, maxRank), maxRank),
+              transformRankForDisplay(Math.min(5000, maxRank), maxRank)
+            ].filter((v, i, a) => a.indexOf(v) === i && v >= chartMinimum && v <= chartMaximum),
+            callback: (value, index, ticks) => {
+              // Find which rank corresponds to this display value
+              const rankValues = [1, 10, 100, 1000, 5000];
+              for (let rank of rankValues) {
+                if (rank <= maxRank && Math.abs(transformRankForDisplay(rank, maxRank) - value) < 0.1) {
+                  return formatRank(rank);
+                }
               }
-              return formatRank(value);
+              return "";
             }
           },
           grid: {
