@@ -350,94 +350,44 @@ function renderScoreChart(playerName, matches) {
 
   const chartMinimum = isScoreMode
     ? Math.max(0, minimumValue - padding)
-    : 1;
+    : Math.max(1, Math.floor(minimumValue - padding));
 
   const chartMaximum = isScoreMode
     ? maximumValue + padding
-    : Math.ceil(maximumValue + padding);    
-
-  // Ensure the top of the rank chart always represents rank 1 so viewers can see
-  // how close the player has been to the top rank at a glance.
-  if (!isScoreMode) {
-    // For rank charts we want the minimum value (which appears at the top because
-    // the axis is reversed) to always be 1.
-    // chartMinimum is already set to 1 above for rank mode, this double-check keeps
-    // behavior explicit if surrounding logic changes.
-    // No-op here, chartMinimum is 1.
-  }
+    : Math.ceil(maximumValue + padding);
 
   if (scoreChart) {
     scoreChart.destroy();
-  }
-
-  // When showing rank charts, render two datasets and two y-axes:
-  //  - A faint 'context' line that shows the player's full history on the full range
-  //  - A highlighted 'zoom' line that is plotted against a tighter y-axis around the player's best ranks
-  // This preserves the overall climb while revealing month-to-month movement near the top ranks.
-  const finiteRanks = ranks.filter(Number.isFinite);
-  const bestRankValue = finiteRanks.length > 0 ? Math.min(...finiteRanks) : 1;
-
-  // Decide a zoom window upper bound (larger numbers mean lower ranks). We show detail down to bestRankValue + zoomPadding.
-  const zoomPadding = Math.max(10, Math.ceil((chartMaximum - bestRankValue) * 0.15));
-  const zoomMax = Math.min(Math.ceil(bestRankValue + zoomPadding), chartMaximum);
-
-  // Build datasets: for scores we keep the single dataset; for ranks we create context + zoomed datasets.
-  const datasets = [];
-
-  if (isScoreMode) {
-    datasets.push({
-      label: `${playerName} score`,
-      data: values,
-      borderColor: "#f4bd55",
-      backgroundColor: "rgba(244, 189, 85, 0.16)",
-      pointBackgroundColor: "#f4bd55",
-      pointBorderColor: "#fff",
-      pointBorderWidth: 2,
-      pointRadius: 5,
-      pointHoverRadius: 7,
-      borderWidth: 3,
-      tension: 0.25,
-      fill: true,
-      yAxisID: 'y'
-    });
-  } else {
-    datasets.push({
-      label: `${playerName} rank (context)`,
-      data: values,
-      borderColor: "rgba(77, 156, 255, 0.28)",
-      backgroundColor: "rgba(77, 156, 255, 0.06)",
-      pointBackgroundColor: "rgba(77, 156, 255, 0.28)",
-      pointBorderColor: "#fff",
-      pointBorderWidth: 1,
-      pointRadius: 3,
-      borderWidth: 2,
-      tension: 0.25,
-      fill: true,
-      yAxisID: 'y' // full-range axis
-    });
-
-    datasets.push({
-      label: `${playerName} rank`,
-      data: values,
-      borderColor: "#4d9cff",
-      backgroundColor: "rgba(77, 156, 255, 0.16)",
-      pointBackgroundColor: "#4d9cff",
-      pointBorderColor: "#fff",
-      pointBorderWidth: 2,
-      pointRadius: 5,
-      pointHoverRadius: 7,
-      borderWidth: 3,
-      tension: 0.25,
-      fill: true,
-      yAxisID: 'yZoom' // zoomed axis for detailed view
-    });
   }
 
   scoreChart = new Chart(scoreChartCanvas, {
     type: "line",
     data: {
       labels,
-      datasets
+      datasets: [
+        {
+          label: isScoreMode
+            ? `${playerName} score`
+            : `${playerName} rank`,
+          data: values,
+          borderColor: isScoreMode
+            ? "#f4bd55"
+            : "#4d9cff",
+          backgroundColor: isScoreMode
+            ? "rgba(244, 189, 85, 0.16)"
+            : "rgba(77, 156, 255, 0.16)",
+          pointBackgroundColor: isScoreMode
+            ? "#f4bd55"
+            : "#4d9cff",
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          borderWidth: 3,
+          tension: 0.25,
+          fill: true
+        }
+      ]
     },
     options: {
       responsive: true,
@@ -475,21 +425,9 @@ function renderScoreChart(playerName, matches) {
             color: "rgba(142, 157, 178, 0.14)"
           }
         },
-        // Full-range axis (context). Hidden to avoid duplicate tick labels but used to render the full history.
         y: {
-          display: false,
           min: chartMinimum,
           max: chartMaximum,
-          reverse: !isScoreMode,
-          grid: {
-            color: "rgba(142, 157, 178, 0.14)"
-          }
-        },
-        // Zoomed axis that surfaces detail near the top ranks.
-        yZoom: {
-          position: 'left',
-          min: 1,
-          max: isScoreMode ? chartMaximum : zoomMax,
           reverse: !isScoreMode,
           ticks: {
             color: "#8e9db2",
