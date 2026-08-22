@@ -463,13 +463,18 @@ function renderScoreChart(playerName, matches) {
             values: [
               transformRankForDisplay(1, maxRank),
               transformRankForDisplay(10, maxRank),
+              transformRankForDisplay(25, maxRank),
+              transformRankForDisplay(50, maxRank),
               transformRankForDisplay(100, maxRank),
               transformRankForDisplay(Math.min(1000, maxRank), maxRank),
-              transformRankForDisplay(Math.min(5000, maxRank), maxRank)
+              transformRankForDisplay(Math.min(2500, maxRank), maxRank),
+              transformRankForDisplay(Math.min(5000, maxRank), maxRank),
+              transformRankForDisplay(Math.min(10000, maxRank), maxRank),
+              transformRankForDisplay(Math.min(25000, maxRank), maxRank)
             ].filter((v, i, a) => a.indexOf(v) === i && v >= chartMinimum && v <= chartMaximum),
             callback: (value, index, ticks) => {
               // Find which rank corresponds to this display value
-              const rankValues = [1, 10, 100, 1000, 5000];
+              const rankValues = [1, 10, 25, 50, 100, 1000, 2500, 5000, 10000, 25000];
               for (let rank of rankValues) {
                 if (rank <= maxRank && Math.abs(transformRankForDisplay(rank, maxRank) - value) < 0.1) {
                   return formatRank(rank);
