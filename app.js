@@ -447,6 +447,8 @@ function renderScoreChart(playerName, matches) {
           reverse: true,
           ticks: {
             color: "#8e9db2",
+            // Define "nice" rank values to display on axis
+            values: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2500, 5000],
             callback: value => {
               return formatRank(value);
             }
