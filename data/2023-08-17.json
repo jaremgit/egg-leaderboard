@@ -1,12 +1,77 @@
 {
   "date": "2023-08-17",
   "complete": false,
-  "observed_entries": 1,
+  "observed_entries": 14,
   "entries": [
+    {
+      "rank": "1",
+      "player": "TVelio",
+      "score": "10052778"
+    },
+    {
+      "rank": "2",
+      "player": "definit",
+      "score": "9344661"
+    },
+    {
+      "rank": "3",
+      "player": "Drewbawcca",
+      "score": "9142871"
+    },
+    {
+      "rank": "4",
+      "player": "wildcard451",
+      "score": "9141269"
+    },
+    {
+      "rank": "5",
+      "player": "stephanigilliam",
+      "score": "9133861"
+    },
+    {
+      "rank": "6",
+      "player": "FreeOJSimpson",
+      "score": "9121606"
+    },
+    {
+      "rank": "7",
+      "player": "gruntibular",
+      "score": "9114388"
+    },
+    {
+      "rank": "8",
+      "player": "BrieferEmpathy33",
+      "score": "9054743"
+    },
+    {
+      "rank": "9",
+      "player": "Priam",
+      "score": "8844214"
+    },
+    {
+      "rank": "10",
+      "player": "Krayn969",
+      "score": "8828855"
+    },
+    {
+      "rank": "11",
+      "player": "Jlanger08",
+      "score": "8754556"
+    },
+    {
+      "rank": "12",
+      "player": "Heroic Bee of Scarlet Forest",
+      "score": "8701641"
+    },
     {
       "rank": "369",
       "player": "Kill Switch HV",
       "score": "6302845"
+    },
+    {
+      "rank": "2028",
+      "player": "Rosa7Spresso",
+      "score": "4856549"
     }
   ]
 }

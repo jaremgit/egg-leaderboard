@@ -1,62 +1,77 @@
 {
   "date": "2025-05-06",
   "complete": false,
-  "observed_entries": 11,
+  "observed_entries": 14,
   "entries": [
     {
       "rank": "1",
       "player": "HickChickspresso",
-      "score": "31605156"
+      "score": "25868650"
     },
     {
       "rank": "2",
       "player": "JucyLucyspresso",
-      "score": "31560561"
+      "score": "25747408"
     },
     {
       "rank": "3",
-      "player": "SpaceCowboy5150",
-      "score": "31476119"
+      "player": "gruntibular",
+      "score": "25708876"
     },
     {
       "rank": "4",
-      "player": "tlvinnie",
-      "score": "31457467"
+      "player": "stephanigilliam",
+      "score": "25562520"
     },
     {
       "rank": "5",
-      "player": "Xander541",
-      "score": "31137908"
+      "player": "wizpresso",
+      "score": "25035678"
     },
     {
       "rank": "6",
-      "player": "Bullspresso",
-      "score": "31119096"
+      "player": "SpaceCowboy5150",
+      "score": "24947587"
     },
     {
       "rank": "7",
-      "player": "chrispresso",
-      "score": "31016883"
+      "player": "L0st T.",
+      "score": "24922997"
     },
     {
       "rank": "8",
-      "player": "BrnEydGrlpresso",
-      "score": "31011703"
+      "player": "Xander541",
+      "score": "24992302"
     },
     {
       "rank": "9",
-      "player": "Rosa7Spresso",
-      "score": "30930312"
+      "player": "d4g0r",
+      "score": "24849542"
     },
     {
       "rank": "10",
-      "player": "lashes77",
-      "score": "30897086"
+      "player": "johnnycashmachine32",
+      "score": "24822594"
     },
     {
       "rank": "11",
-      "player": "NightHawk",
-      "score": "30819964"
+      "player": "Rosa7Spresso",
+      "score": "24820847"
+    },
+    {
+      "rank": "12",
+      "player": "DistancedRelative",
+      "score": "24801176"
+    },
+    {
+      "rank": "13",
+      "player": "chrispresso",
+      "score": "24703618"
+    },
+    {
+      "rank": "14",
+      "player": "Dodgerflamy",
+      "score": "24645566"
     }
   ]
 }
