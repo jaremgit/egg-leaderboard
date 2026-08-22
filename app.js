@@ -350,11 +350,21 @@ function renderScoreChart(playerName, matches) {
 
   const chartMinimum = isScoreMode
     ? Math.max(0, minimumValue - padding)
-    : Math.max(1, Math.floor(minimumValue - padding));
+    : 1;
 
   const chartMaximum = isScoreMode
     ? maximumValue + padding
-    : Math.ceil(maximumValue + padding);
+    : Math.ceil(maximumValue + padding);    
+
+  // Ensure the top of the rank chart always represents rank 1 so viewers can see
+  // how close the player has been to the top rank at a glance.
+  if (!isScoreMode) {
+    // For rank charts we want the minimum value (which appears at the top because
+    // the axis is reversed) to always be 1.
+    // chartMinimum is already set to 1 above for rank mode, this double-check keeps
+    // behavior explicit if surrounding logic changes.
+    // No-op here, chartMinimum is 1.
+  }
 
   if (scoreChart) {
     scoreChart.destroy();
