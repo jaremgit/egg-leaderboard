@@ -1,12 +1,12 @@
 {
   "date": "2024-02-02",
   "complete": false,
-  "observed_entries": 17,
+  "observed_entries": 18,
   "entries": [
     {
       "rank": "1",
       "player": "wildcard451",
-      "score": "14903182",
+      "score": "14940806",
       "source": "Discord"
     },
     {
@@ -18,25 +18,25 @@
     {
       "rank": "3",
       "player": "stephanigilliam",
-      "score": "13856974",
+      "score": "13895781",
       "source": "Discord"
     },
     {
       "rank": "4",
       "player": "scorpnicole",
-      "score": "13412565",
+      "score": "13449117",
       "source": "Discord"
     },
     {
       "rank": "5",
-      "player": "bostonbruins2394",
-      "score": "13359670",
+      "player": "X-presso",
+      "score": "13367563",
       "source": "Discord"
     },
     {
       "rank": "6",
-      "player": "X-presso",
-      "score": "13301592",
+      "player": "bostonbruins2394",
+      "score": "13359670",
       "source": "Discord"
     },
     {
@@ -53,56 +53,62 @@
     },
     {
       "rank": "9",
+      "player": "Pemma1861",
+      "score": "13134518",
+      "source": "Discord"
+    },
+    {
+      "rank": "10",
       "player": "metabot.",
       "score": "13118282",
       "source": "Discord"
     },
     {
-      "rank": "10",
+      "rank": "11",
       "player": "Awsomehailey",
       "score": "13092528",
       "source": "Discord"
     },
     {
-      "rank": "11",
-      "player": "Pemma1861",
-      "score": "13080390",
-      "source": "Discord"
-    },
-    {
       "rank": "12",
       "player": "definit",
-      "score": "12896569",
+      "score": "12897173",
       "source": "Discord"
     },
     {
       "rank": "13",
       "player": "nampyun12",
-      "score": "12857338",
+      "score": "12895765",
       "source": "Discord"
     },
     {
       "rank": "14",
       "player": "d4g0r",
-      "score": "12845833",
+      "score": "12890507",
       "source": "Discord"
     },
     {
       "rank": "15",
-      "player": "TheAdamMiner",
-      "score": "12833144",
+      "player": "Vanquish",
+      "score": "12861655",
       "source": "Discord"
     },
     {
       "rank": "16",
-      "player": "Vanquish",
-      "score": "12822975",
+      "player": "TheAdamMiner",
+      "score": "12833144",
       "source": "Discord"
     },
     {
       "rank": "100",
       "player": "wizpresso",
       "score": "11350744",
+      "source": "Discord"
+    },
+    {
+      "rank": "232",
+      "player": "LastCavalier43",
+      "score": "10594329",
       "source": "Discord"
     }
   ]
