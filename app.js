@@ -350,15 +350,14 @@ function renderScoreChart(playerName, matches) {
 
   const chartMinimum = isScoreMode
     ? Math.max(0, minimumValue - padding)
-    : Math.max(1, Math.floor(minimumValue - padding));
+    : 1; // Always start at rank 1
 
+  // For rank mode: keep rank 100 at ~90% of the y-axis
+  // chartMax = max(111, maxRank) ensures rank 100 is at 90% when possible
+  // and expands to show any lower rankings
   const chartMaximum = isScoreMode
     ? maximumValue + padding
-    : Math.ceil(maximumValue + padding);
-
-  // For rank mode, determine if we should use logarithmic scale
-  // Use log scale if rank range is large (more than 10x spread)
-  const useLogScaleForRank = !isScoreMode && (maximumValue / Math.max(minimumValue, 1) > 10);
+    : Math.max(111, maximumValue);
 
   if (scoreChart) {
     scoreChart.destroy();
@@ -442,26 +441,12 @@ function renderScoreChart(playerName, matches) {
           grid: {
             color: "rgba(142, 157, 178, 0.14)"
           }
-        } : useLogScaleForRank ? {
-          type: "logarithmic",
-          reverse: true,
-          ticks: {
-            color: "#8e9db2",
-            callback: value => {
-              return formatRank(value);
-            }
-          },
-          grid: {
-            color: "rgba(142, 157, 178, 0.14)"
-          }
         } : {
           min: chartMinimum,
           max: chartMaximum,
           reverse: true,
           ticks: {
             color: "#8e9db2",
-            stepSize: 1,
-            precision: 0,
             callback: value => {
               if (!Number.isInteger(value)) {
                 return "";
