@@ -1,67 +1,62 @@
 {
-  "date": "2025-08-08",
+  "date": "2025-08-20",
   "complete": false,
-  "observed_entries": 12,
+  "observed_entries": 11,
   "entries": [
     {
       "rank": "1",
       "player": "HickChickspresso",
-      "score": "27781119"
+      "score": "27976072"
     },
     {
       "rank": "2",
       "player": "JucyLucyspresso",
-      "score": "27676591"
+      "score": "27865655"
     },
     {
       "rank": "3",
       "player": "SpaceCowboy5150",
-      "score": "27554244"
+      "score": "27827093"
     },
     {
       "rank": "4",
       "player": "stephanigilliam",
-      "score": "27330159"
+      "score": "27530323"
     },
     {
       "rank": "5",
       "player": "gruntibular",
-      "score": "27045553"
+      "score": "27231191"
     },
     {
       "rank": "6",
-      "player": "wizpresso",
-      "score": "37045553"
+      "player": "Xander541",
+      "score": "27197035"
     },
     {
       "rank": "7",
-      "player": "Xander541",
-      "score": "27006276"
+      "player": "wizpresso",
+      "score": "27150790"
     },
     {
       "rank": "8",
-      "player": "chrispresso",
-      "score": "26830722"
+      "player": "tlvinnie",
+      "score": "27091597"
     },
     {
       "rank": "9",
       "player": "L0st T.",
-      "score": "26825884"
+      "score": "27002680"
     },
     {
       "rank": "10",
-      "player": "d4g0r",
-      "score": "26758528"
+      "player": "Rosa7Spresso",
+      "score": "26953094"
     },
     {
       "rank": "11",
-      "player": "Rosa7Spresso",
-      "score": "26757571"
-    },
-    {
-      "rank": "316",
-      "player": "Idahotchrpresso",
-      "score": "21357154"
+      "player": "chrispresso",
+      "score": "26946072"
     }
   ]
 }
