@@ -356,6 +356,10 @@ function renderScoreChart(playerName, matches) {
     ? maximumValue + padding
     : Math.ceil(maximumValue + padding);
 
+  // For rank mode, determine if we should use logarithmic scale
+  // Use log scale if rank range is large (more than 10x spread)
+  const useLogScaleForRank = !isScoreMode && (maximumValue / Math.max(minimumValue, 1) > 10);
+
   if (scoreChart) {
     scoreChart.destroy();
   }
@@ -425,22 +429,44 @@ function renderScoreChart(playerName, matches) {
             color: "rgba(142, 157, 178, 0.14)"
           }
         },
-        y: {
+        y: isScoreMode ? {
           min: chartMinimum,
           max: chartMaximum,
-          reverse: !isScoreMode,
+          reverse: false,
           ticks: {
             color: "#8e9db2",
-            stepSize: isScoreMode ? undefined : 1,
-            precision: isScoreMode ? undefined : 0,
             callback: value => {
-              if (!isScoreMode && !Number.isInteger(value)) {
+              return formatScore(value);
+            }
+          },
+          grid: {
+            color: "rgba(142, 157, 178, 0.14)"
+          }
+        } : useLogScaleForRank ? {
+          type: "logarithmic",
+          reverse: true,
+          ticks: {
+            color: "#8e9db2",
+            callback: value => {
+              return formatRank(value);
+            }
+          },
+          grid: {
+            color: "rgba(142, 157, 178, 0.14)"
+          }
+        } : {
+          min: chartMinimum,
+          max: chartMaximum,
+          reverse: true,
+          ticks: {
+            color: "#8e9db2",
+            stepSize: 1,
+            precision: 0,
+            callback: value => {
+              if (!Number.isInteger(value)) {
                 return "";
               }
-
-              return isScoreMode
-                ? formatScore(value)
-                : formatRank(value);
+              return formatRank(value);
             }
           },
           grid: {
