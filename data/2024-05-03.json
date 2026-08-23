@@ -1,12 +1,87 @@
 {
   "date": "2024-05-03",
   "complete": false,
-  "observed_entries": 1,
+  "observed_entries": 16,
   "entries": [
     {
       "rank": "39",
       "player": "Dodgerflamy",
       "score": "14766872"
+    },
+    {
+      "rank": "86",
+      "player": "F2PwantT4Ldeflector",
+      "score": "13986396"
+    },
+    {
+      "rank": "87",
+      "player": "Elsevier184",
+      "score": "13977971"
+    },
+    {
+      "rank": "88",
+      "player": "Riggenstimple",
+      "score": "13974483"
+    },
+    {
+      "rank": "89",
+      "player": "__mlsl__",
+      "score": "13945828"
+    },
+    {
+      "rank": "90",
+      "player": "Valhalla",
+      "score": "13892837"
+    },
+    {
+      "rank": "91",
+      "player": "bunnythechic",
+      "score": "13880906"
+    },
+    {
+      "rank": "92",
+      "player": "__mlsl__",
+      "score": "13867852"
+    },
+    {
+      "rank": "93",
+      "player": "Zeiram00X",
+      "score": "13867298"
+    },
+    {
+      "rank": "94",
+      "player": "PontificatingWalrus",
+      "score": "13837195"
+    },
+    {
+      "rank": "95",
+      "player": "AmaterasuFarm",
+      "score": "13810401"
+    },
+    {
+      "rank": "96",
+      "player": "JonnieBravo11",
+      "score": "13798291"
+    },
+    {
+      "rank": "97",
+      "player": "lenbello",
+      "score": "13784984"
+    },
+    {
+      "rank": "98",
+      "player": "SpaceCowboy5150",
+      "score": "13772406"
+    },
+    {
+      "rank": "99",
+      "player": "LoadOfStone",
+      "score": "13769237"
+    },
+    {
+      "rank": "100",
+      "player": "DJ ScubaSteve",
+      "score": "13762339"
     }
   ]
 }

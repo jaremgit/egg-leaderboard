@@ -1,7 +1,7 @@
 {
   "date": "2025-07-12",
   "complete": false,
-  "observed_entries": 16,
+  "observed_entries": 17,
   "entries": [
     {
       "rank": "1",
@@ -82,6 +82,11 @@
       "rank": "16",
       "player": "lashes77",
       "score": "26085461"
+    },
+    {
+      "rank": "495",
+      "player": "Azzipresso",
+      "score": "19275179"
     }
   ]
 }
