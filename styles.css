@@ -769,3 +769,59 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Data Gaps Report Styles */
+.gaps-container {
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.gaps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gap-item {
+  padding: 14px 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 9px;
+  background: rgba(23, 35, 55, 0.5);
+  transition: background 0.15s ease;
+}
+
+.gap-item:hover {
+  background: rgba(23, 35, 55, 0.8);
+}
+
+.gap-date-range {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.gap-arrow {
+  color: var(--gold);
+  font-size: 1.1rem;
+}
+
+.gap-duration {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.gap-duration-value {
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+#gaps-status {
+  text-align: center;
+  margin: 16px 0 0 0;
+  font-size: 0.85rem;
+}
+

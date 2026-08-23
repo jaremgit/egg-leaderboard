@@ -113,6 +113,7 @@
         <button id="previous-date" type="button">← Previous</button>
         <button id="next-date" type="button">Next →</button>
         <button id="heatmap-button" type="button">📅 Data Coverage</button>
+        <button id="gaps-button" type="button">📊 Data Gaps</button>
       </div>
     </section>
 
@@ -160,6 +161,23 @@
           <div id="heatmap-grid" class="heatmap-grid"></div>
         </div>
         <p id="heatmap-status" class="status"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Gaps Modal -->
+  <div id="gaps-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Data Gaps Report</h2>
+        <button id="close-gaps-modal" class="modal-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="gaps-container" class="gaps-container">
+          <div id="gaps-list" class="gaps-list"></div>
+        </div>
+        <p id="gaps-status" class="status"></p>
       </div>
     </div>
   </div>

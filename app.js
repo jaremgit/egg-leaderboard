@@ -58,6 +58,27 @@ function getHeatmapStatus() {
   return document.getElementById("heatmap-status");
 }
 
+// Lazy getters for gaps elements (query on demand)
+function getGapsButton() {
+  return document.getElementById("gaps-button");
+}
+
+function getGapsModal() {
+  return document.getElementById("gaps-modal");
+}
+
+function getCloseGapsModal() {
+  return document.getElementById("close-gaps-modal");
+}
+
+function getGapsList() {
+  return document.getElementById("gaps-list");
+}
+
+function getGapsStatus() {
+  return document.getElementById("gaps-status");
+}
+
 let availableDates = [];
 let currentDateIndex = -1;
 let allLeaderboards = [];
@@ -990,6 +1011,118 @@ function getHeatmapColor(count, maxCount) {
   return "#06b6d4";                       // Aqua (100+)
 }
 
+// Data gaps analysis helpers
+function buildGapsList() {
+  if (availableDates.length === 0) {
+    return [];
+  }
+
+  const gaps = [];
+  const sortedDates = availableDates.slice().sort();
+  const minGapDays = 14;
+
+  for (let i = 0; i < sortedDates.length - 1; i++) {
+    const currentDate = new Date(sortedDates[i]);
+    const nextDate = new Date(sortedDates[i + 1]);
+
+    // Calculate difference in days
+    const diffTime = nextDate - currentDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    // Only include gaps of 14 days or longer
+    if (diffDays >= minGapDays) {
+      const gapStartDate = new Date(currentDate);
+      gapStartDate.setDate(gapStartDate.getDate() + 1);
+
+      const gapEndDate = new Date(nextDate);
+      gapEndDate.setDate(gapEndDate.getDate() - 1);
+
+      gaps.push({
+        startDate: formatDate(gapStartDate.toISOString().split('T')[0]),
+        endDate: formatDate(gapEndDate.toISOString().split('T')[0]),
+        durationDays: diffDays - 1,
+        rawStartDate: gapStartDate.toISOString().split('T')[0],
+        rawEndDate: gapEndDate.toISOString().split('T')[0]
+      });
+    }
+  }
+
+  // Sort gaps by duration (longest first)
+  gaps.sort((a, b) => b.durationDays - a.durationDays);
+
+  return gaps;
+}
+
+function openGapsModal() {
+  const modal = getGapsModal();
+  if (!modal) {
+    console.error("Gaps modal element not found");
+    return;
+  }
+  modal.classList.remove("hidden");
+  renderGapsReport();
+}
+
+function closeGapsModalFunc() {
+  const modal = getGapsModal();
+  if (!modal) {
+    console.error("Gaps modal element not found");
+    return;
+  }
+  modal.classList.add("hidden");
+}
+
+function renderGapsReport() {
+  const list = getGapsList();
+  const status = getGapsStatus();
+
+  if (!list || !status) {
+    console.error("Gaps list or status element not found");
+    return;
+  }
+
+  list.innerHTML = "";
+  const gaps = buildGapsList();
+
+  if (gaps.length === 0) {
+    status.textContent = "No data gaps detected — archive is complete!";
+    return;
+  }
+
+  gaps.forEach((gap) => {
+    const gapItem = document.createElement("div");
+    gapItem.className = "gap-item";
+
+    const dateRangeDiv = document.createElement("div");
+    dateRangeDiv.className = "gap-date-range";
+
+    const startSpan = document.createElement("span");
+    startSpan.textContent = gap.startDate;
+
+    const arrowSpan = document.createElement("span");
+    arrowSpan.className = "gap-arrow";
+    arrowSpan.textContent = "→";
+
+    const endSpan = document.createElement("span");
+    endSpan.textContent = gap.endDate;
+
+    dateRangeDiv.appendChild(startSpan);
+    dateRangeDiv.appendChild(arrowSpan);
+    dateRangeDiv.appendChild(endSpan);
+
+    const durationDiv = document.createElement("div");
+    durationDiv.className = "gap-duration";
+    durationDiv.innerHTML = `Duration: <span class="gap-duration-value">${gap.durationDays} day${gap.durationDays !== 1 ? 's' : ''}</span>`;
+
+    gapItem.appendChild(dateRangeDiv);
+    gapItem.appendChild(durationDiv);
+
+    list.appendChild(gapItem);
+  });
+
+  status.textContent = `Found ${gaps.length} data gap${gaps.length !== 1 ? 's' : ''} (sorted by longest duration)`;
+}
+
 // Setup event listeners for heatmap
 const heatmapButtonEl = getHeatmapButton();
 if (heatmapButtonEl) {
@@ -1026,8 +1159,41 @@ document.addEventListener("keydown", (event) => {
     if (modal && !modal.classList.contains("hidden")) {
       closeHeatmapModalFunc();
     }
+    const gapsModal = getGapsModal();
+    if (gapsModal && !gapsModal.classList.contains("hidden")) {
+      closeGapsModalFunc();
+    }
   }
 });
+
+// Setup event listeners for gaps report
+const gapsButtonEl = getGapsButton();
+if (gapsButtonEl) {
+  gapsButtonEl.addEventListener("click", () => {
+    openGapsModal();
+  });
+}
+
+const closeGapsBtnEl = getCloseGapsModal();
+if (closeGapsBtnEl) {
+  closeGapsBtnEl.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeGapsModalFunc();
+  });
+}
+
+const gapsModalElement = getGapsModal();
+if (gapsModalElement) {
+  // Click anywhere on modal to check for backdrop
+  gapsModalElement.addEventListener("click", (e) => {
+    // If clicking on the backdrop div
+    if (e.target.classList.contains("modal-backdrop")) {
+      e.stopPropagation();
+      closeGapsModalFunc();
+    }
+  });
+}
 
 
 initialize();
