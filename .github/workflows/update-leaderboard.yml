@@ -1,0 +1,117 @@
+name: Update Leaderboard Data
+
+on:
+  schedule:
+    # Run every Monday at 7:00 AM Los Angeles time (2 PM UTC during PDT, 3 PM UTC during PST)
+    # Using 2 PM UTC for best year-round coverage
+    - cron: '0 14 * * 1'
+  # Allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-leaderboard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Fetch leaderboard data from ei_worker
+        id: fetch
+        run: |
+          # Fetch leaderboard data from ei_worker API
+          RESPONSE=$(curl -s "https://ei_worker.tylertms.workers.dev/leaderboard?eid=${{ secrets.EI_EID }}&scope=ALL_TIME&grade=5")
+          echo "response=$RESPONSE" >> $GITHUB_OUTPUT
+          echo "Fetched leaderboard data successfully"
+
+      - name: Process and save leaderboard data
+        id: process
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+
+          // Get the API response
+          const apiResponse = JSON.parse(process.env.API_RESPONSE);
+
+          // Get today's date in YYYY-MM-DD format
+          const today = new Date().toISOString().split('T')[0];
+          const dataDir = path.join('egg-leaderboard', 'data');
+
+          // Ensure data directory exists
+          if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+          }
+
+          // Transform API response to match current format
+          // ei_worker returns an array of leaderboard entries
+          const leaderboardData = apiResponse.leaderboard || apiResponse || [];
+
+          // Build the data structure
+          const dataSnapshot = {
+            date: today,
+            complete: false,
+            observed_entries: leaderboardData.length,
+            entries: leaderboardData.map((entry, index) => ({
+              rank: String(index + 1),
+              player: entry.name || entry.player || 'Unknown',
+              score: String(entry.score || 0),
+              source: 'ei_worker'
+            }))
+          };
+
+          // Save the daily snapshot
+          const snapshotPath = path.join(dataDir, `${today}.json`);
+          fs.writeFileSync(snapshotPath, JSON.stringify(dataSnapshot, null, 2));
+          console.log(`Saved leaderboard snapshot: ${snapshotPath}`);
+
+          // Update dates.json
+          const datesPath = path.join(dataDir, 'dates.json');
+          let dates = [];
+
+          if (fs.existsSync(datesPath)) {
+            dates = JSON.parse(fs.readFileSync(datesPath, 'utf8'));
+          }
+
+          // Add today's date if not already present
+          if (!dates.includes(today)) {
+            dates.push(today);
+            dates.sort(); // Keep in chronological order
+            fs.writeFileSync(datesPath, JSON.stringify(dates, null, 2));
+            console.log(`Updated dates.json with new date: ${today}`);
+          } else {
+            console.log(`Date ${today} already exists in dates.json`);
+          }
+
+          // Write a summary
+          console.log(`\nLeaderboard Update Summary:`);
+          console.log(`- Date: ${today}`);
+          console.log(`- Entries fetched: ${dataSnapshot.observed_entries}`);
+          console.log(`- Top player: ${dataSnapshot.entries[0]?.player || 'N/A'}`);
+
+          EOF
+        env:
+          API_RESPONSE: ${{ steps.fetch.outputs.response }}
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # Check if there are changes to commit
+          if git diff --quiet egg-leaderboard/data/; then
+            echo "No changes detected in leaderboard data"
+          else
+            git add egg-leaderboard/data/
+            git commit -m "chore: update leaderboard data - $(date -u +'%Y-%m-%d')"
+            git push
+            echo "Changes pushed to repository"
+          fi
