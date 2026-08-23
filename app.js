@@ -30,11 +30,21 @@ const scoreChartButton =
 const rankChartButton =
   document.getElementById("rank-chart-button");
 
+const zoomInButton =
+  document.getElementById("zoom-in-button");
+
+const zoomOutButton =
+  document.getElementById("zoom-out-button");
+
+const zoomResetButton =
+  document.getElementById("zoom-reset-button");
+
 let availableDates = [];
 let currentDateIndex = -1;
 let allLeaderboards = [];
 let scoreChart = null;
 let chartMode = "score";
+let chartZoomLevel = 1;
 
 async function loadDates() {
   try {
@@ -414,6 +424,33 @@ function renderScoreChart(playerName, matches) {
               return `Rank: ${formatRank(ranks[index])} · Score: ${formatScore(scores[index])}`;
             }
           }
+        },
+        zoom: {
+          zoom: {
+            wheel: {
+              enabled: true,
+              speed: 0.1
+            },
+            pinch: {
+              enabled: true
+            },
+            mode: "y",
+            onZoomStart(event) {
+              // Handle zoom start if needed
+            },
+            onZoomComplete() {
+              updateZoomButtonStates();
+            }
+          },
+          pan: {
+            enabled: false
+          },
+          limits: {
+            y: {
+              min: isScoreMode ? 0 : 1,
+              max: isScoreMode ? "original" : "original"
+            }
+          }
         }
       },
       scales: {
@@ -464,7 +501,9 @@ function renderScoreChart(playerName, matches) {
       `${matches.length} recorded points`;
   }
 
+  chartZoomLevel = 1;
   updateChartToggleButtons();
+  updateZoomButtonStates();
 }
 
 function hideScoreChart() {
@@ -472,6 +511,8 @@ function hideScoreChart() {
     scoreChart.destroy();
     scoreChart = null;
   }
+
+  chartZoomLevel = 1;
 
   if (scoreChartContainer) {
     scoreChartContainer.classList.add("hidden");
@@ -481,6 +522,7 @@ function hideScoreChart() {
     chartStatus.textContent = "";
   }
 }
+
 
 function refreshFocusedChart() {
   const searchTerm = playerSearch.value.trim().toLowerCase();
@@ -546,13 +588,48 @@ function updateChartToggleButtons() {
 
 scoreChartButton.addEventListener("click", () => {
   chartMode = "score";
+  chartZoomLevel = 1;
   refreshFocusedChart();
 });
 
 rankChartButton.addEventListener("click", () => {
   chartMode = "rank";
+  chartZoomLevel = 1;
   refreshFocusedChart();
 });
+
+zoomInButton.addEventListener("click", () => {
+  if (scoreChart) {
+    scoreChart.zoom(1.2, "auto");
+    chartZoomLevel *= 1.2;
+    updateZoomButtonStates();
+  }
+});
+
+zoomOutButton.addEventListener("click", () => {
+  if (scoreChart) {
+    scoreChart.zoom(0.85, "auto");
+    chartZoomLevel *= 0.85;
+    updateZoomButtonStates();
+  }
+});
+
+zoomResetButton.addEventListener("click", () => {
+  if (scoreChart) {
+    scoreChart.resetZoom("auto");
+    chartZoomLevel = 1;
+    updateZoomButtonStates();
+  }
+});
+
+function updateZoomButtonStates() {
+  // Disable zoom-in if we're already at max zoom (arbitrary limit: 5x)
+  zoomInButton.disabled = chartZoomLevel >= 5;
+  // Disable zoom-out if we're at normal zoom or less
+  zoomOutButton.disabled = chartZoomLevel <= 1;
+  // Disable reset if we're at normal zoom
+  zoomResetButton.disabled = chartZoomLevel <= 1.01;
+}
 
 dateSelect.addEventListener("change", event => {
   const selectedDate = event.target.value;

@@ -488,6 +488,12 @@ tbody tr:hover {
   margin-bottom: 6px;
 }
 
+.chart-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+}
+
 .chart-wrapper {
   position: relative;
   height: 320px;
@@ -496,6 +502,11 @@ tbody tr:hover {
 @media (max-width: 650px) {
   .chart-heading {
     align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .chart-buttons {
     flex-direction: column;
     gap: 8px;
   }
@@ -535,8 +546,47 @@ tbody tr:hover {
   color: white;
 }
 
+.zoom-controls {
+  display: flex;
+  gap: 5px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #101a2a;
+}
+
+.zoom-button {
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.zoom-button:hover:not(:disabled) {
+  background: rgba(77, 156, 255, 0.12);
+  color: var(--text);
+}
+
+.zoom-button:active:not(:disabled) {
+  background: rgba(77, 156, 255, 0.2);
+}
+
+.zoom-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 @media (max-width: 650px) {
   .chart-controls {
+    align-self: flex-start;
+  }
+
+  .zoom-controls {
     align-self: flex-start;
   }
 }

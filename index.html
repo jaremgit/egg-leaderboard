@@ -49,31 +49,65 @@
             <h3 id="chart-title">Score over time</h3>
           </div>
 
-          <div class="chart-controls">
-            <button
-              id="score-chart-button"
-              class="chart-toggle active"
-              type="button"
-            >
-              Score
-            </button>
+          <div class="chart-buttons">
+            <div class="chart-controls" role="tablist" aria-label="Chart type">
+              <button
+                id="score-chart-button"
+                class="chart-toggle active"
+                type="button"
+                aria-pressed="true"
+              >
+                Score
+              </button>
 
-            <button
-              id="rank-chart-button"
-              class="chart-toggle"
-              type="button"
-            >
-              Rank
-            </button>
+              <button
+                id="rank-chart-button"
+                class="chart-toggle"
+                type="button"
+                aria-pressed="false"
+              >
+                Rank
+              </button>
+            </div>
+
+            <div class="zoom-controls" role="group" aria-label="Chart zoom">
+              <button
+                id="zoom-in-button"
+                class="zoom-button"
+                type="button"
+                title="Zoom in on chart"
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+              <button
+                id="zoom-out-button"
+                class="zoom-button"
+                type="button"
+                title="Zoom out on chart"
+                aria-label="Zoom out"
+              >
+                −
+              </button>
+              <button
+                id="zoom-reset-button"
+                class="zoom-button"
+                type="button"
+                title="Reset to default zoom"
+                aria-label="Reset zoom"
+              >
+                Reset
+              </button>
+            </div>
           </div>
 
           <p id="chart-status" class="status"></p>
         </div>
 
-  <div class="chart-wrapper">
-    <canvas id="score-chart"></canvas>
-  </div>
-</div>
+        <div class="chart-wrapper">
+          <canvas id="score-chart" aria-label="Player score chart"></canvas>
+        </div>
+      </div>
 
       <div class="table-wrapper">
         <table id="search-results-table" class="hidden">
@@ -134,6 +168,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.1.0/dist/chartjs-plugin-zoom.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
