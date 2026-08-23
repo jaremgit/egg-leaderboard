@@ -33,6 +33,9 @@ const rankChartButton =
 const rankScaleZoomSelect =
   document.getElementById("rank-scale-zoom");
 
+const dataFilterSelect =
+  document.getElementById("data-filter-select");
+
 // Lazy getters for heatmap elements (query on demand)
 function getHeatmapButton() {
   return document.getElementById("heatmap-button");
@@ -130,6 +133,7 @@ let scoreChart = null;
 let chartMode = "score";
 let rankScaleZoom = "default";
 let dateEntryCountMap = {};
+let dataFilterMode = "raw";
 
 async function loadDates() {
   try {
@@ -453,11 +457,18 @@ function getRankMedal(rank) {
 }
 
 function renderScoreChart(playerName, matches) {
+  console.log(`renderScoreChart called for ${playerName} with ${matches.length} matches`);
+
   if (!scoreChartContainer || !scoreChartCanvas) {
+    console.warn("Chart containers not found");
     return;
   }
 
-  if (matches.length < 2) {
+  // Apply filter based on selected mode
+  const filteredMatches = filterMatchesByMode(matches, dataFilterMode);
+  console.log(`After filtering: ${filteredMatches.length} matches`);
+
+  if (filteredMatches.length < 2) {
     hideScoreChart();
 
     if (chartStatus) {
@@ -468,15 +479,15 @@ function renderScoreChart(playerName, matches) {
     return;
   }
 
-  const labels = matches.map(match => formatDate(match.date));
+  const labels = filteredMatches.map(match => formatDate(match.date));
 
-  const scores = matches.map(match => {
+  const scores = filteredMatches.map(match => {
     return Number(
       String(match.score).replaceAll(",", "").trim()
     );
   });
 
-  const ranks = matches.map(match => Number(match.rank));
+  const ranks = filteredMatches.map(match => Number(match.rank));
 
   const isScoreMode = chartMode === "score";
   const values = isScoreMode ? scores : ranks;
@@ -726,6 +737,17 @@ rankScaleZoomSelect.addEventListener("change", (event) => {
   refreshFocusedChart();
 });
 
+if (dataFilterSelect) {
+  dataFilterSelect.addEventListener("change", (event) => {
+    console.log(`Filter dropdown changed to: ${event.target.value}`);
+    dataFilterMode = event.target.value;
+    console.log(`dataFilterMode is now: ${dataFilterMode}`);
+    refreshFocusedChart();
+  });
+} else {
+  console.warn("dataFilterSelect element not found in DOM");
+}
+
 dateSelect.addEventListener("change", event => {
   const selectedDate = event.target.value;
   currentDateIndex = availableDates.indexOf(selectedDate);
@@ -836,6 +858,114 @@ function formatScore(score) {
   }
 
   return Number(scoreText).toLocaleString("en-US");
+}
+
+function getWeekStartDate(isoDate) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  // Get the day of week (0 = Sunday)
+  const dayOfWeek = date.getUTCDay();
+
+  // Calculate days to subtract to get to Monday (1)
+  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+  const weekStart = new Date(date);
+  weekStart.setUTCDate(date.getUTCDate() - daysToMonday);
+
+  return [
+    weekStart.getUTCFullYear(),
+    String(weekStart.getUTCMonth() + 1).padStart(2, "0"),
+    String(weekStart.getUTCDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function getMonthStartDate(isoDate) {
+  const [year, month] = isoDate.split("-").map(Number);
+  return `${year}-${String(month).padStart(2, "0")}-01`;
+}
+
+function groupDataByPeriod(matches, period) {
+  const groups = {};
+
+  matches.forEach(match => {
+    let key;
+    if (period === "weekly" || period === "weekly-peak") {
+      key = getWeekStartDate(match.date);
+    } else if (period === "monthly" || period === "monthly-peak") {
+      key = getMonthStartDate(match.date);
+    } else {
+      // raw data
+      return;
+    }
+
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(match);
+  });
+
+  return groups;
+}
+
+function calculateAverages(groups) {
+  return Object.entries(groups)
+    .map(([dateKey, entries]) => {
+      const avgRank = entries.reduce((sum, e) => sum + Number(e.rank), 0) / entries.length;
+      const avgScore = entries.reduce((sum, e) => 
+        sum + Number(String(e.score).replaceAll(",", "").trim()), 0) / entries.length;
+
+      // Use the first date in the period as the representative date
+      return {
+        date: dateKey,
+        rank: Math.round(avgRank),
+        score: Math.round(avgScore)
+      };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function calculatePeaks(groups) {
+  return Object.entries(groups)
+    .map(([dateKey, entries]) => {
+      // For rank: lower is better, so we want the minimum (best rank)
+      const peakRank = Math.min(...entries.map(e => Number(e.rank)));
+
+      // For score: higher is better, so we want the maximum (highest score)
+      const peakScore = Math.max(...entries.map(e => 
+        Number(String(e.score).replaceAll(",", "").trim())));
+
+      // Use the first date in the period as the representative date
+      return {
+        date: dateKey,
+        rank: peakRank,
+        score: peakScore
+      };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function filterMatchesByMode(matches, filterMode) {
+  console.log(`filterMatchesByMode called: ${matches.length} matches, filter mode: ${filterMode}`);
+
+  if (filterMode === "raw") {
+    console.log("Returning raw matches");
+    return matches;
+  }
+
+  const groups = groupDataByPeriod(matches, filterMode);
+  console.log(`Grouped into ${Object.keys(groups).length} groups`);
+
+  let filtered;
+  if (filterMode === "weekly-peak" || filterMode === "monthly-peak") {
+    filtered = calculatePeaks(groups);
+    console.log(`Result: ${filtered.length} peak data points`);
+  } else {
+    filtered = calculateAverages(groups);
+    console.log(`Result: ${filtered.length} averaged data points`);
+  }
+
+  return filtered;
 }
 
 function escapeHtml(value) {
