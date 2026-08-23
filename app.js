@@ -315,6 +315,20 @@ function chooseFocusedPlayer(names, searchTerm) {
   })[0];
 }
 
+function getRankColor(rank) {
+  // Return color based on rank: 1=gold, 2=silver, 3=bronze
+  if (rank === 1) {
+    return "#ffd700"; // Gold
+  }
+  if (rank === 2) {
+    return "#c0c0c0"; // Silver
+  }
+  if (rank === 3) {
+    return "#cd7f32"; // Bronze
+  }
+  return "#4d9cff"; // Default blue for other ranks
+}
+
 function renderScoreChart(playerName, matches) {
   if (!scoreChartContainer || !scoreChartCanvas) {
     return;
@@ -403,7 +417,7 @@ function renderScoreChart(playerName, matches) {
             : "rgba(77, 156, 255, 0.16)",
           pointBackgroundColor: isScoreMode
             ? "#f4bd55"
-            : "#4d9cff",
+            : ranks.map(rank => getRankColor(rank)),
           pointBorderColor: "#fff",
           pointBorderWidth: 2,
           pointRadius: 5,
