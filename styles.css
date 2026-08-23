@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap');
+
 :root {
   --background: #0d1422;
   --background-raised: #121c2d;
@@ -56,6 +58,7 @@ body {
       rgba(13, 20, 34, 0.96),
       rgba(25, 49, 82, 0.94)
     );
+  font-family: 'Caveat', cursive;
 }
 
 .site-header::before {
@@ -382,12 +385,11 @@ tbody tr:hover {
 }
 
 .summary-value {
-  overflow: hidden;
   color: var(--text);
   font-size: 0.94rem;
   font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .hidden {

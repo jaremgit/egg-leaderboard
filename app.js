@@ -231,8 +231,8 @@ async function searchPlayers() {
     </div>
 
     <div class="summary-item">
-      <div class="summary-label">Best rank</div>
-      <div class="summary-value">${formatRank(bestRank)}</div>
+      <div class="summary-label">Best Known Rank</div>
+      <div class="summary-value">${formatRank(bestRank)}${typeof bestRank === "number" ? " " + getRankMedal(bestRank) : ""}</div>
     </div>
 
     <div class="summary-item">
@@ -273,10 +273,16 @@ async function searchPlayers() {
       ? ` · ${extraPlayers} other matching player${extraPlayers === 1 ? "" : "s"}`
       : "");
 
-  searchResultsTable.classList.remove("hidden");
+     searchResultsTable.classList.remove("hidden");
 
-  renderScoreChart(focusedPlayer, matches);
-}
+     // Reset zoom scaling to default when a new player is searched
+     rankScaleZoom = "default";
+     if (rankScaleZoomSelect) {
+       rankScaleZoomSelect.value = "default";
+     }
+
+     renderScoreChart(focusedPlayer, matches);
+  }
 
 function chooseFocusedPlayer(names, searchTerm) {
   const exactMatches = names.filter(name =>
@@ -329,6 +335,20 @@ function getRankColor(rank) {
   return "#4d9cff"; // Default blue for other ranks
 }
 
+function getRankMedal(rank) {
+  // Return medal emoji based on rank
+  if (rank === 1) {
+    return "🥇";
+  }
+  if (rank === 2) {
+    return "🥈";
+  }
+  if (rank === 3) {
+    return "🥉";
+  }
+  return "";
+}
+
 function renderScoreChart(playerName, matches) {
   if (!scoreChartContainer || !scoreChartCanvas) {
     return;
@@ -371,8 +391,8 @@ function renderScoreChart(playerName, matches) {
   let stepSize;
 
   if (isScoreMode) {
-    chartMinimum = Math.max(0, minimumValue - padding);
-    chartMaximum = maximumValue + padding;
+    chartMinimum = Math.max(0, Math.floor(minimumValue - padding));
+    chartMaximum = Math.ceil(maximumValue + padding);
     stepSize = undefined;
   } else if (rankScaleZoom === "default") {
     // Default rank scaling with dynamic step size (10% of max value, whole numbers only)
@@ -409,15 +429,9 @@ function renderScoreChart(playerName, matches) {
             ? `${playerName} score`
             : `${playerName} rank`,
           data: values,
-          borderColor: isScoreMode
-            ? "#f4bd55"
-            : "#4d9cff",
-          backgroundColor: isScoreMode
-            ? "rgba(244, 189, 85, 0.16)"
-            : "rgba(77, 156, 255, 0.16)",
-          pointBackgroundColor: isScoreMode
-            ? "#f4bd55"
-            : ranks.map(rank => getRankColor(rank)),
+          borderColor: "#4d9cff",
+          backgroundColor: "rgba(77, 156, 255, 0.16)",
+          pointBackgroundColor: ranks.map(rank => getRankColor(rank)),
           pointBorderColor: "#fff",
           pointBorderWidth: 2,
           pointRadius: 5,
@@ -473,7 +487,7 @@ function renderScoreChart(playerName, matches) {
             stepSize: isScoreMode ? undefined : stepSize,
             precision: isScoreMode ? undefined : 0,
             callback: value => {
-              if (!isScoreMode && !Number.isInteger(value)) {
+              if (!Number.isInteger(value)) {
                 return "";
               }
 
