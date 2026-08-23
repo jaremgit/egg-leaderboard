@@ -112,6 +112,7 @@
       <div class="navigation-buttons">
         <button id="previous-date" type="button">← Previous</button>
         <button id="next-date" type="button">Next →</button>
+        <button id="heatmap-button" type="button">📅 Data Coverage</button>
       </div>
     </section>
 
@@ -145,7 +146,27 @@
     </section>
   </main>
 
+  <!-- Heatmap Modal -->
+  <div id="heatmap-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Data Coverage Heatmap</h2>
+        <button id="close-heatmap-modal" class="modal-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="heatmap-container">
+          <div id="heatmap-legend" class="heatmap-legend"></div>
+          <div id="heatmap-grid" class="heatmap-grid"></div>
+        </div>
+        <p id="heatmap-status" class="status"></p>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="app.js"></script>
 </body>
+
+</html>
 </html>

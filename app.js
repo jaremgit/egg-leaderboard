@@ -33,12 +33,38 @@ const rankChartButton =
 const rankScaleZoomSelect =
   document.getElementById("rank-scale-zoom");
 
+// Lazy getters for heatmap elements (query on demand)
+function getHeatmapButton() {
+  return document.getElementById("heatmap-button");
+}
+
+function getHeatmapModal() {
+  return document.getElementById("heatmap-modal");
+}
+
+function getCloseHeatmapModal() {
+  return document.getElementById("close-heatmap-modal");
+}
+
+function getHeatmapGrid() {
+  return document.getElementById("heatmap-grid");
+}
+
+function getHeatmapLegend() {
+  return document.getElementById("heatmap-legend");
+}
+
+function getHeatmapStatus() {
+  return document.getElementById("heatmap-status");
+}
+
 let availableDates = [];
 let currentDateIndex = -1;
 let allLeaderboards = [];
 let scoreChart = null;
 let chartMode = "score";
 let rankScaleZoom = "default";
+let dateEntryCountMap = {};
 
 async function loadDates() {
   try {
@@ -754,9 +780,254 @@ async function initialize() {
       "Enter a player name to search the archive.";
 
     updateChartToggleButtons();
+
+    if (typeof buildHeatmapDataMap === 'function') {
+      buildHeatmapDataMap();
+    }
   } catch (error) {
     searchStatus.textContent = error.message;
   }
 }
+
+function buildHeatmapDataMap() {
+  dateEntryCountMap = {};
+  availableDates.forEach(date => {
+    dateEntryCountMap[date] = 0;
+  });
+
+  allLeaderboards.forEach(leaderboard => {
+    if (dateEntryCountMap[leaderboard.date] !== undefined) {
+      dateEntryCountMap[leaderboard.date] = leaderboard.entries.length;
+    }
+  });
+}
+
+function openHeatmapModal() {
+  const modal = getHeatmapModal();
+  if (!modal) {
+    console.error("Heatmap modal element not found");
+    return;
+  }
+  modal.classList.remove("hidden");
+  renderHeatmap();
+}
+
+function closeHeatmapModalFunc() {
+  const modal = getHeatmapModal();
+  if (!modal) {
+    console.error("Heatmap modal element not found");
+    return;
+  }
+  modal.classList.add("hidden");
+}
+
+function renderHeatmap() {
+  const grid = getHeatmapGrid();
+  const legend = getHeatmapLegend();
+  const status = getHeatmapStatus();
+
+  if (!grid || !legend || !status) {
+    console.error("Heatmap elements not found");
+    return;
+  }
+
+  grid.innerHTML = "";
+  legend.innerHTML = "";
+  status.textContent = "";
+
+  if (availableDates.length === 0) {
+    status.textContent = "No dates available.";
+    return;
+  }
+
+  const minDate = new Date(availableDates[0]);
+  const maxDate = new Date(availableDates[availableDates.length - 1]);
+
+  const counts = Object.values(dateEntryCountMap).filter(c => c > 0);
+  const maxCount = counts.length > 0 ? Math.max(...counts) : 1;
+  const minCount = counts.length > 0 ? Math.min(...counts) : 0;
+
+  renderLegend(minCount, maxCount);
+  renderMonthsByWeeks(minDate, maxDate, maxCount);
+
+  status.textContent = `Coverage: ${availableDates.length} snapshots recorded from ${formatDate(availableDates[0])} to ${formatDate(availableDates[availableDates.length - 1])}`;
+}
+
+function renderLegend(minCount, maxCount) {
+  const levels = [
+    { label: "No data", value: 0, color: "#4b5563" },
+    { label: "1-25 entries", value: 1, color: "#ef4444" },
+    { label: "26-50 entries", value: 26, color: "#eab308" },
+    { label: "51-99 entries", value: 51, color: "#22c55e" },
+    { label: "100+ entries", value: 100, color: "#06b6d4" }
+  ];
+
+  const legendHtml = levels
+    .map(level => `
+      <div class="legend-item">
+        <div class="legend-color" style="background: ${level.color};"></div>
+        <span>${level.label}</span>
+      </div>
+    `)
+    .join("");
+
+  const legend = getHeatmapLegend();
+  if (legend) {
+    legend.innerHTML = legendHtml;
+  }
+}
+
+function renderMonthsByWeeks(minDate, maxDate, maxCount) {
+  const currentDate = new Date(minDate);
+
+  while (currentDate <= maxDate) {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    renderMonth(year, month, maxCount);
+
+    currentDate.setMonth(currentDate.getMonth() + 1);
+  }
+}
+
+function renderMonth(year, month, maxCount) {
+  const monthDiv = document.createElement("div");
+  monthDiv.className = "heatmap-month";
+
+  const monthName = new Date(year, month, 1).toLocaleString("en-US", {
+    month: "long",
+    year: "numeric"
+  });
+
+  const monthTitle = document.createElement("div");
+  monthTitle.className = "heatmap-month-title";
+  monthTitle.textContent = monthName;
+  monthDiv.appendChild(monthTitle);
+
+  const weeksContainer = document.createElement("div");
+  weeksContainer.className = "heatmap-week-container";
+
+  const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+  const daysInMonth = lastDayOfMonth.getDate();
+
+  // Get the day of week for the first day (0 = Sunday)
+  const firstDayOfWeek = firstDayOfMonth.getDay();
+
+  let currentWeek = null;
+  let dayOfWeekCounter = firstDayOfWeek;
+
+  // Add padding days from previous month
+  if (firstDayOfWeek > 0) {
+    currentWeek = document.createElement("div");
+    currentWeek.className = "heatmap-week";
+
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      const emptyDiv = document.createElement("div");
+      emptyDiv.className = "heatmap-day heatmap-day-empty";
+      emptyDiv.style.setProperty("--heatmap-color", "#1a1a1a");
+      currentWeek.appendChild(emptyDiv);
+    }
+    dayOfWeekCounter = firstDayOfWeek;
+  }
+
+  // Add actual days of the month
+  for (let day = 1; day <= daysInMonth; day++) {
+    if (!currentWeek) {
+      currentWeek = document.createElement("div");
+      currentWeek.className = "heatmap-week";
+      dayOfWeekCounter = 0;
+    }
+
+    const dayDiv = document.createElement("div");
+    dayDiv.className = "heatmap-day";
+
+    // Create date string in YYYY-MM-DD format using local date
+    const d = new Date(year, month, day);
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const count = dateEntryCountMap[dateStr] || 0;
+    const color = getHeatmapColor(count, maxCount);
+
+    dayDiv.style.setProperty("--heatmap-color", color);
+    dayDiv.setAttribute("data-tooltip", `${formatDate(dateStr)}: ${count} entries`);
+    dayDiv.title = `${formatDate(dateStr)}: ${count} entries`;
+
+    currentWeek.appendChild(dayDiv);
+    dayOfWeekCounter++;
+
+    if (dayOfWeekCounter === 7) {
+      weeksContainer.appendChild(currentWeek);
+      currentWeek = null;
+      dayOfWeekCounter = 0;
+    }
+  }
+
+  // Add padding days from next month
+  if (currentWeek) {
+    while (dayOfWeekCounter < 7) {
+      const emptyDiv = document.createElement("div");
+      emptyDiv.className = "heatmap-day heatmap-day-empty";
+      emptyDiv.style.setProperty("--heatmap-color", "#1a1a1a");
+      currentWeek.appendChild(emptyDiv);
+      dayOfWeekCounter++;
+    }
+    weeksContainer.appendChild(currentWeek);
+  }
+
+  monthDiv.appendChild(weeksContainer);
+
+  const grid = getHeatmapGrid();
+  if (grid) {
+    grid.appendChild(monthDiv);
+  }
+}
+
+function getHeatmapColor(count, maxCount) {
+  if (count === 0) return "#4b5563";      // Dark Grey
+  if (count <= 25) return "#ef4444";      // Red
+  if (count <= 50) return "#eab308";      // Yellow
+  if (count <= 99) return "#22c55e";      // Green
+  return "#06b6d4";                       // Aqua (100+)
+}
+
+// Setup event listeners for heatmap
+const heatmapButtonEl = getHeatmapButton();
+if (heatmapButtonEl) {
+  heatmapButtonEl.addEventListener("click", () => {
+    openHeatmapModal();
+  });
+}
+
+const closeBtnEl = getCloseHeatmapModal();
+if (closeBtnEl) {
+  closeBtnEl.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeHeatmapModalFunc();
+  });
+}
+
+const modalElement = getHeatmapModal();
+if (modalElement) {
+  // Click anywhere on modal to check for backdrop
+  modalElement.addEventListener("click", (e) => {
+    // If clicking on the backdrop div
+    if (e.target.classList.contains("modal-backdrop")) {
+      e.stopPropagation();
+      closeHeatmapModalFunc();
+    }
+  });
+}
+
+// Escape key to close
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    const modal = getHeatmapModal();
+    if (modal && !modal.classList.contains("hidden")) {
+      closeHeatmapModalFunc();
+    }
+  }
+});
+
 
 initialize();
