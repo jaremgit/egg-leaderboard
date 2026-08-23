@@ -1,7 +1,7 @@
 {
   "date": "2023-09-07",
   "complete": false,
-  "observed_entries": 14,
+  "observed_entries": 74,
   "entries": [
     {
       "rank": "1",
@@ -82,10 +82,310 @@
       "source": "Discord"
     },
     {
+      "rank": "14",
+      "player": "Krayn969",
+      "score": "9279871",
+      "source": "Discord"
+    },
+    {
+      "rank": "15",
+      "player": "micahchino",
+      "score": "9268469"
+    },
+    {
+      "rank": "16",
+      "player": "Pemma1861",
+      "score": "9213487"
+    },
+    {
+      "rank": "17",
+      "player": "Awsomehailey",
+      "score": "9211255"
+    },
+    {
+      "rank": "18",
+      "player": "ScubaJean",
+      "score": "9162576"
+    },
+    {
+      "rank": "19",
+      "player": "drwumbo420",
+      "score": "9076807"
+    },
+    {
+      "rank": "20",
+      "player": "RangerZER0117",
+      "score": "9050634"
+    },
+    {
+      "rank": "21",
+      "player": "Bladedlace",
+      "score": "9046154"
+    },
+    {
+      "rank": "22",
+      "player": "Double J195",
+      "score": "8984079"
+    },
+    {
+      "rank": "23",
+      "player": "scorpnicole",
+      "score": "8977942"
+    },
+    {
+      "rank": "24",
+      "player": "fuye",
+      "score": "8930854"
+    },
+    {
+      "rank": "25",
+      "player": "~Mikey4541~",
+      "score": "8925209"
+    },
+    {
+      "rank": "26",
+      "player": "d4g0r",
+      "score": "8875762"
+    },
+    {
+      "rank": "27",
+      "player": "TheAdamMiner",
+      "score": "8874018"
+    },
+    {
+      "rank": "28",
+      "player": "Jimmy the Loon",
+      "score": "8858035"
+    },
+    {
+      "rank": "29",
+      "player": "Staabmia",
+      "score": "8855913"
+    },
+    {
+      "rank": "30",
+      "player": "__mlsl__",
+      "score": "8854172"
+    },
+    {
+      "rank": "31",
+      "player": "pajr777",
+      "score": "8841570"
+    },
+    {
+      "rank": "32",
+      "player": "synthparadox",
+      "score": "8824555"
+    },
+    {
+      "rank": "33",
+      "player": "Sylvester of Silverdale",
+      "score": "8821946"
+    },
+    {
+      "rank": "34",
+      "player": "SpeedRacer775",
+      "score": "8819637"
+    },
+    {
+      "rank": "35",
+      "player": "mcpewpews",
+      "score": "8817197"
+    },
+    {
+      "rank": "36",
+      "player": "Gauleygrl",
+      "score": "8816718"
+    },
+    {
+      "rank": "64",
+      "player": "Blueberritus",
+      "score": "8383256"
+    },
+    {
+      "rank": "65",
+      "player": "Adriannosaurus",
+      "score": "8374595"
+    },
+    {
+      "rank": "66",
+      "player": "x_Tarik_x",
+      "score": "8372948"
+    },
+    {
+      "rank": "67",
+      "player": "OhItsSteve",
+      "score": "8366931"
+    },
+    {
+      "rank": "68",
+      "player": "luismh1000",
+      "score": "8363176"
+    },
+    {
+      "rank": "69",
+      "player": "epaliva",
+      "score": "8360620"
+    },
+    {
+      "rank": "70",
+      "player": "Davoreno247",
+      "score": "8355377"
+    },
+    {
+      "rank": "71",
+      "player": "Scythril",
+      "score": "8339893"
+    },
+    {
+      "rank": "72",
+      "player": "Lelands89",
+      "score": "8328483"
+    },
+    {
+      "rank": "73",
+      "player": "FancyPantsCoder96545",
+      "score": "8319834"
+    },
+    {
+      "rank": "74",
+      "player": "TheStingray44",
+      "score": "8313418"
+    },
+    {
+      "rank": "75",
+      "player": "larainzlo",
+      "score": "8291404"
+    },
+    {
+      "rank": "76",
+      "player": "Attila-the-Hen",
+      "score": "8282387"
+    },
+    {
+      "rank": "78",
+      "player": "friedguppy",
+      "score": "8269643"
+    },
+    {
+      "rank": "79",
+      "player": "FranticDingo7347",
+      "score": "8266515"
+    },
+    {
+      "rank": "80",
+      "player": "Brozono",
+      "score": "8265024"
+    },
+    {
+      "rank": "81",
+      "player": "grhatt",
+      "score": "8255967"
+    },
+    {
+      "rank": "82",
+      "player": "CalMeSpork",
+      "score": "8229236"
+    },
+    {
+      "rank": "83",
+      "player": "maverickra",
+      "score": "8215467"
+    },
+    {
+      "rank": "84",
+      "player": "EdyTaco411",
+      "score": "8190721"
+    },
+    {
+      "rank": "85",
+      "player": "sollr",
+      "score": "8190184"
+    },
+    {
+      "rank": "86",
+      "player": "TheShrike80",
+      "score": "8177183"
+    },
+    {
+      "rank": "87",
+      "player": "KraZe3rd",
+      "score": "8162004"
+    },
+    {
+      "rank": "88",
+      "player": "Tizzle10p",
+      "score": "8152454"
+    },
+    {
+      "rank": "89",
+      "player": "BigT1916",
+      "score": "8142791"
+    },
+    {
+      "rank": "90",
+      "player": "kornfan68",
+      "score": "8141565"
+    },
+    {
+      "rank": "91",
+      "player": "Raspunt",
+      "score": "8132759"
+    },
+    {
+      "rank": "92",
+      "player": "niekze",
+      "score": "8127942"
+    },
+    {
+      "rank": "93",
+      "player": "aggiemd91",
+      "score": "8113991"
+    },
+    {
+      "rank": "94",
+      "player": "higgs0000111",
+      "score": "8085518"
+    },
+    {
+      "rank": "95",
+      "player": "donpaullstofhisname",
+      "score": "8079448"
+    },
+    {
+      "rank": "96",
+      "player": "scottsaxman",
+      "score": "8074006"
+    },
+    {
+      "rank": "97",
+      "player": "*!(frrtt)!",
+      "score": "8066365"
+    },
+    {
+      "rank": "98",
+      "player": "Tashab9120",
+      "score": "8022818"
+    },
+    {
+      "rank": "99",
+      "player": "Brýce",
+      "score": "8015059"
+    },
+    {
+      "rank": "100",
+      "player": "DrQuacking",
+      "score": "8011490"
+    },
+    {
+      "rank": "574",
+      "player": "Suz_Extra",
+      "score": "6301171"
+    },
+    {
       "rank": "5413",
       "player": "LastCavalier43",
-      "score": "4095287",
-      "source": "Discord"
+      "score": "4095287"
     }
   ]
 }

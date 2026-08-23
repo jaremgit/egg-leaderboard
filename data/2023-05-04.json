@@ -1,7 +1,7 @@
 {
   "date": "2023-05-04",
   "complete": false,
-  "observed_entries": 15,
+  "observed_entries": 28,
   "entries": [
     {
       "rank": "1",
@@ -92,6 +92,71 @@
       "player": "abubu0524",
       "score": "4602139",
       "source": "Discord"
+    },
+    {
+      "rank": "22",
+      "player": "grhatt",
+      "score": "4176007"
+    },
+    {
+      "rank": "23",
+      "player": "Tizzle10p",
+      "score": "3984764"
+    },
+    {
+      "rank": "24",
+      "player": "TheDrake88",
+      "score": "3958322"
+    },
+    {
+      "rank": "25",
+      "player": "wildcard451",
+      "score": "3802077"
+    },
+    {
+      "rank": "26",
+      "player": "Tains72",
+      "score": "3551203"
+    },
+    {
+      "rank": "27",
+      "player": "JonnieBravo11",
+      "score": "3220825"
+    },
+    {
+      "rank": "28",
+      "player": "Kwyyxx",
+      "score": "3003580"
+    },
+    {
+      "rank": "29",
+      "player": "CabbageShart",
+      "score": "2929331"
+    },
+    {
+      "rank": "30",
+      "player": "Elsevier184",
+      "score": "2896826"
+    },
+    {
+      "rank": "31",
+      "player": "Zeiram00X",
+      "score": "2600601"
+    },
+    {
+      "rank": "32",
+      "player": "Suz_Extra",
+      "score": "2439081"
+    },
+    {
+      "rank": "33",
+      "player": "LouisBx",
+      "score": "2365141"
+    },
+    {
+      "rank": "34",
+      "player": "Hashtru",
+      "score": "2298014"
     }
   ]
 }

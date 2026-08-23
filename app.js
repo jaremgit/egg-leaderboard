@@ -79,6 +79,50 @@ function getGapsStatus() {
   return document.getElementById("gaps-status");
 }
 
+// Player alias mapping - resolves name changes
+let playerAliasMap = {};
+
+async function loadPlayerAliases() {
+  try {
+    const response = await fetch("data/player-aliases.json");
+    if (!response.ok) {
+      console.error("Could not load player-aliases.json");
+      return;
+    }
+
+    const aliases = await response.json();
+    // Remove comment fields and build reverse lookup
+    playerAliasMap = {};
+
+    for (const [canonicalName, aliasList] of Object.entries(aliases)) {
+      if (!canonicalName.startsWith("_")) {
+        // Store canonical name for each alias
+        if (Array.isArray(aliasList)) {
+          aliasList.forEach(alias => {
+            playerAliasMap[alias.toLowerCase()] = canonicalName;
+          });
+        }
+      }
+    }
+
+    console.log("Player alias map loaded with", Object.keys(playerAliasMap).length, "entries");
+  } catch (error) {
+    console.error("Failed to load player aliases:", error);
+  }
+}
+
+// Resolve a player name to its canonical form using the alias map
+function resolvePlayerName(playerName) {
+  if (playerName === null || playerName === undefined) return playerName;
+  const lowerName = playerName.toLowerCase();
+  return playerAliasMap[lowerName] || playerName;
+}
+
+// Normalize player name for display (converts aliases to canonical names)
+function normalizePlayerName(playerName) {
+  return resolvePlayerName(playerName);
+}
+
 let availableDates = [];
 let currentDateIndex = -1;
 let allLeaderboards = [];
@@ -142,10 +186,11 @@ async function loadLeaderboard(date) {
 
     leaderboard.entries.forEach(entry => {
       const row = document.createElement("tr");
+      const displayName = normalizePlayerName(entry.player);
 
       row.innerHTML = `
         <td>${formatRank(entry.rank)}</td>
-        <td>${escapeHtml(entry.player)}</td>
+        <td>${escapeHtml(displayName)}</td>
         <td>${formatScore(entry.score)}</td>
       `;
 
@@ -184,9 +229,15 @@ async function loadAllLeaderboards() {
 
       const leaderboard = await response.json();
 
+      // Normalize player names to canonical form when loading
+      const normalizedEntries = leaderboard.entries.map(entry => ({
+        ...entry,
+        player: normalizePlayerName(entry.player)
+      }));
+
       return {
         date,
-        entries: leaderboard.entries
+        entries: normalizedEntries
       };
     })
   );
@@ -226,13 +277,17 @@ async function searchPlayers() {
     });
   });
 
+  // Find matches by checking both current name and aliases
   const matchingNames = [
     ...new Set(
       allEntries
-        .filter(entry =>
-          entry.player.toLowerCase().includes(searchTerm)
-        )
-        .map(entry => entry.player)
+        .filter(entry => {
+          const currentNameMatch = entry.player.toLowerCase().includes(searchTerm);
+          const canonicalName = resolvePlayerName(entry.player);
+          const aliasMatch = canonicalName.toLowerCase().includes(searchTerm);
+          return currentNameMatch || aliasMatch;
+        })
+        .map(entry => resolvePlayerName(entry.player))
     )
   ];
 
@@ -246,8 +301,9 @@ async function searchPlayers() {
     searchTerm
   );
 
+  // Find all entries for the canonical player name
   const matches = allEntries
-    .filter(entry => entry.player === focusedPlayer)
+    .filter(entry => resolvePlayerName(entry.player) === focusedPlayer)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const numericRanks = matches
@@ -792,6 +848,7 @@ function escapeHtml(value) {
 }
 
 async function initialize() {
+  await loadPlayerAliases();
   await loadDates();
 
   try {
