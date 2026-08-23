@@ -1,0 +1,157 @@
+name: Update Leaderboard Data
+
+on:
+  schedule:
+    # Run every Monday at 7:00 AM Los Angeles time (2 PM UTC during PDT, 3 PM UTC during PST)
+    # Using 2 PM UTC for best year-round coverage
+    - cron: '0 14 * * 1'
+  # Allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-leaderboard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.1.7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.0.2
+        with:
+          node-version: '22'
+
+      - name: Fetch leaderboard data from ei_worker
+        id: fetch
+        run: |
+          # Fetch leaderboard data from ei_worker API and save to file
+          curl -s "https://ei_worker.tylertms.workers.dev/leaderboard?eid=${{ secrets.EI_EID }}&scope=ALL_TIME&grade=5" > leaderboard_response.json
+          echo "API fetch completed"
+          echo "Response preview:"
+          head -c 500 leaderboard_response.json
+
+      - name: Process and save leaderboard data
+        id: process
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+
+          // Read the API response from file
+          let apiResponse;
+          try {
+            const responseContent = fs.readFileSync('leaderboard_response.json', 'utf8');
+            apiResponse = JSON.parse(responseContent);
+          } catch (e) {
+            console.error('Failed to parse API response:', e.message);
+            process.exit(1);
+          }
+
+          console.log('API Response loaded successfully');
+          console.log('Response keys:', Object.keys(apiResponse));
+          console.log('topEntriesList length:', apiResponse.topEntriesList?.length || 'undefined');
+
+          // Get today's date in YYYY-MM-DD format
+          const today = new Date().toISOString().split('T')[0];
+          const dataDir = 'data';
+
+          // Ensure data directory exists
+          if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+          }
+
+          // Extract leaderboard entries - ei_worker returns topEntriesList
+          let leaderboardData = apiResponse.topEntriesList || [];
+
+          console.log('Extracted leaderboardData length:', leaderboardData.length);
+
+          if (!Array.isArray(leaderboardData)) {
+            console.error('Expected leaderboardData to be an array, got:', typeof leaderboardData);
+            process.exit(1);
+          }
+
+          if (leaderboardData.length === 0) {
+            console.error('No leaderboard entries found!');
+            console.error('Full response:', JSON.stringify(apiResponse, null, 2));
+            process.exit(1);
+          }
+
+          // Build the data structure
+          const dataSnapshot = {
+            date: today,
+            complete: false,
+            observed_entries: leaderboardData.length,
+            entries: leaderboardData.map((entry) => ({
+              rank: String(entry.rank),
+              player: entry.alias || entry.name || entry.player_name || 'Unknown',
+              score: String(entry.score || 0),
+              source: 'ei_worker'
+            }))
+          };
+
+          // Save the daily snapshot
+          const snapshotPath = path.join(dataDir, `${today}.json`);
+          fs.writeFileSync(snapshotPath, JSON.stringify(dataSnapshot, null, 2));
+          console.log(`✓ Saved leaderboard snapshot: ${snapshotPath}`);
+
+          // Update dates.json
+          const datesPath = path.join(dataDir, 'dates.json');
+          let dates = [];
+
+          if (fs.existsSync(datesPath)) {
+            dates = JSON.parse(fs.readFileSync(datesPath, 'utf8'));
+          }
+
+          // Add today's date if not already present
+          if (!dates.includes(today)) {
+            dates.push(today);
+            dates.sort(); // Keep in chronological order
+            fs.writeFileSync(datesPath, JSON.stringify(dates, null, 2));
+            console.log(`✓ Updated dates.json with new date: ${today}`);
+          } else {
+            console.log(`Date ${today} already exists in dates.json`);
+          }
+
+          // Write a summary
+          console.log(`\n✓ Leaderboard Update Summary:`);
+          console.log(`  Date: ${today}`);
+          console.log(`  Entries fetched: ${dataSnapshot.observed_entries}`);
+          console.log(`  Top player: ${dataSnapshot.entries[0]?.player || 'N/A'}`);
+          console.log(`  Score: ${dataSnapshot.entries[0]?.score || 'N/A'}`);
+
+          EOF
+
+
+
+      - name: Debug - Check files exist
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Files in data/:"
+          ls -la data/ || echo "Directory not found!"
+          echo ""
+          echo "Git status:"
+          git status
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # Force add all files (untracked and modified)
+          git add -f data/
+
+          # Check git status before commit
+          echo "Git status after add:"
+          git status
+
+          # Only commit if there are changes
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update leaderboard data - $(date -u +'%Y-%m-%d')"
+            git push
+            echo "Changes pushed to repository"
+          fi
