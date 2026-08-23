@@ -126,16 +126,31 @@ jobs:
 
 
 
+      - name: Debug - Check files exist
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Files in egg-leaderboard/data/:"
+          ls -la egg-leaderboard/data/ || echo "Directory not found!"
+          echo ""
+          echo "Git status:"
+          git status
+
       - name: Commit and push changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          # Check if there are changes to commit
-          if git diff --quiet egg-leaderboard/data/; then
-            echo "No changes detected in leaderboard data"
+          # Force add all files (untracked and modified)
+          git add -f egg-leaderboard/data/
+
+          # Check git status before commit
+          echo "Git status after add:"
+          git status
+
+          # Only commit if there are changes
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
           else
-            git add egg-leaderboard/data/
             git commit -m "chore: update leaderboard data - $(date -u +'%Y-%m-%d')"
             git push
             echo "Changes pushed to repository"
