@@ -40,7 +40,16 @@ jobs:
           const path = require('path');
 
           // Get the API response
-          const apiResponse = JSON.parse(process.env.API_RESPONSE);
+          let apiResponse;
+          try {
+            apiResponse = JSON.parse(process.env.API_RESPONSE);
+          } catch (e) {
+            console.error('Failed to parse API response:', e.message);
+            console.error('Raw response:', process.env.API_RESPONSE);
+            process.exit(1);
+          }
+
+          console.log('API Response structure:', JSON.stringify(apiResponse, null, 2).substring(0, 500));
 
           // Get today's date in YYYY-MM-DD format
           const today = new Date().toISOString().split('T')[0];
@@ -51,9 +60,14 @@ jobs:
             fs.mkdirSync(dataDir, { recursive: true });
           }
 
-          // Transform API response to match current format
-          // ei_worker returns an array of leaderboard entries
-          const leaderboardData = apiResponse.leaderboard || apiResponse || [];
+          // Extract leaderboard entries - ei_worker returns an array directly
+          let leaderboardData = Array.isArray(apiResponse) ? apiResponse : (apiResponse.leaderboard || []);
+
+          if (!Array.isArray(leaderboardData)) {
+            console.error('Expected leaderboardData to be an array, got:', typeof leaderboardData);
+            console.error('Full response:', JSON.stringify(apiResponse, null, 2));
+            process.exit(1);
+          }
 
           // Build the data structure
           const dataSnapshot = {
@@ -62,8 +76,8 @@ jobs:
             observed_entries: leaderboardData.length,
             entries: leaderboardData.map((entry, index) => ({
               rank: String(index + 1),
-              player: entry.name || entry.player || 'Unknown',
-              score: String(entry.score || 0),
+              player: entry.name || entry.player_name || entry.player || 'Unknown',
+              score: String(entry.score || entry.earnings || 0),
               source: 'ei_worker'
             }))
           };
@@ -100,6 +114,7 @@ jobs:
           EOF
         env:
           API_RESPONSE: ${{ steps.fetch.outputs.response }}
+
 
       - name: Commit and push changes
         run: |
