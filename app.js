@@ -30,11 +30,15 @@ const scoreChartButton =
 const rankChartButton =
   document.getElementById("rank-chart-button");
 
+const rankScaleZoomSelect =
+  document.getElementById("rank-scale-zoom");
+
 let availableDates = [];
 let currentDateIndex = -1;
 let allLeaderboards = [];
 let scoreChart = null;
 let chartMode = "score";
+let rankScaleZoom = "default";
 
 async function loadDates() {
   try {
@@ -348,13 +352,34 @@ function renderScoreChart(playerName, matches) {
     ? Math.max(minimumValue * 0.1, 1)
     : valueRange * 0.12;
 
-  const chartMinimum = isScoreMode
-    ? Math.max(0, minimumValue - padding)
-    : Math.max(1, Math.floor(minimumValue - padding));
+  let chartMinimum;
+  let chartMaximum;
+  let stepSize;
 
-  const chartMaximum = isScoreMode
-    ? maximumValue + padding
-    : Math.ceil(maximumValue + padding);
+  if (isScoreMode) {
+    chartMinimum = Math.max(0, minimumValue - padding);
+    chartMaximum = maximumValue + padding;
+    stepSize = undefined;
+  } else if (rankScaleZoom === "default") {
+    // Default rank scaling with dynamic step size (10% of max value, whole numbers only)
+    chartMinimum = Math.max(1, Math.floor(minimumValue - padding));
+    chartMaximum = Math.ceil(maximumValue + padding);
+    // Calculate step size as 10% of the max (highest rank), rounded to nearest whole number
+    stepSize = Math.max(1, Math.round(chartMaximum * 0.1));
+  } else {
+    // Constrained zoom levels with specific step sizes
+    const zoomRanges = {
+      "0-10": { min: 0, max: 10, step: 1 },
+      "0-25": { min: 0, max: 25, step: 5 },
+      "0-50": { min: 0, max: 50, step: 10 },
+      "0-100": { min: 0, max: 100, step: 10 }
+    };
+
+    const range = zoomRanges[rankScaleZoom];
+    chartMinimum = range.min;
+    chartMaximum = range.max;
+    stepSize = range.step;
+  }
 
   if (scoreChart) {
     scoreChart.destroy();
@@ -431,7 +456,7 @@ function renderScoreChart(playerName, matches) {
           reverse: !isScoreMode,
           ticks: {
             color: "#8e9db2",
-            stepSize: isScoreMode ? undefined : 1,
+            stepSize: isScoreMode ? undefined : stepSize,
             precision: isScoreMode ? undefined : 0,
             callback: value => {
               if (!isScoreMode && !Number.isInteger(value)) {
@@ -542,6 +567,16 @@ function updateChartToggleButtons() {
     "active",
     chartMode === "rank"
   );
+
+  // Show/hide the rank scale zoom dropdown based on chart mode
+  if (rankScaleZoomSelect) {
+    if (chartMode === "rank") {
+      rankScaleZoomSelect.classList.remove("hidden");
+      rankScaleZoomSelect.value = rankScaleZoom;
+    } else {
+      rankScaleZoomSelect.classList.add("hidden");
+    }
+  }
 }
 
 scoreChartButton.addEventListener("click", () => {
@@ -551,6 +586,12 @@ scoreChartButton.addEventListener("click", () => {
 
 rankChartButton.addEventListener("click", () => {
   chartMode = "rank";
+  rankScaleZoom = "default";
+  refreshFocusedChart();
+});
+
+rankScaleZoomSelect.addEventListener("change", (event) => {
+  rankScaleZoom = event.target.value;
   refreshFocusedChart();
 });
 

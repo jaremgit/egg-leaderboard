@@ -535,6 +535,26 @@ tbody tr:hover {
   color: white;
 }
 
+.rank-scale-zoom {
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rank-scale-zoom:hover {
+  background: rgba(77, 156, 255, 0.12);
+}
+
+.rank-scale-zoom:focus {
+  outline: none;
+  background: rgba(77, 156, 255, 0.12);
+}
+
 @media (max-width: 650px) {
   .chart-controls {
     align-self: flex-start;
