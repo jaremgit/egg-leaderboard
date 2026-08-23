@@ -17,20 +17,21 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.1.7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.0.2
         with:
           node-version: '22'
 
       - name: Fetch leaderboard data from ei_worker
         id: fetch
         run: |
-          # Fetch leaderboard data from ei_worker API
-          RESPONSE=$(curl -s "https://ei_worker.tylertms.workers.dev/leaderboard?eid=${{ secrets.EI_EID }}&scope=ALL_TIME&grade=5")
-          echo "response=$RESPONSE" >> $GITHUB_OUTPUT
-          echo "Fetched leaderboard data successfully"
+          # Fetch leaderboard data from ei_worker API and save to file
+          curl -s "https://ei_worker.tylertms.workers.dev/leaderboard?eid=${{ secrets.EI_EID }}&scope=ALL_TIME&grade=5" > leaderboard_response.json
+          echo "API fetch completed"
+          echo "Response preview:"
+          head -c 500 leaderboard_response.json
 
       - name: Process and save leaderboard data
         id: process
@@ -39,17 +40,19 @@ jobs:
           const fs = require('fs');
           const path = require('path');
 
-          // Get the API response
+          // Read the API response from file
           let apiResponse;
           try {
-            apiResponse = JSON.parse(process.env.API_RESPONSE);
+            const responseContent = fs.readFileSync('leaderboard_response.json', 'utf8');
+            apiResponse = JSON.parse(responseContent);
           } catch (e) {
             console.error('Failed to parse API response:', e.message);
-            console.error('Raw response:', process.env.API_RESPONSE);
             process.exit(1);
           }
 
-          console.log('API Response structure:', JSON.stringify(apiResponse, null, 2).substring(0, 500));
+          console.log('API Response loaded successfully');
+          console.log('Response keys:', Object.keys(apiResponse));
+          console.log('topEntriesList length:', apiResponse.topEntriesList?.length || 'undefined');
 
           // Get today's date in YYYY-MM-DD format
           const today = new Date().toISOString().split('T')[0];
@@ -60,11 +63,18 @@ jobs:
             fs.mkdirSync(dataDir, { recursive: true });
           }
 
-          // Extract leaderboard entries - ei_worker returns an array directly
-          let leaderboardData = Array.isArray(apiResponse) ? apiResponse : (apiResponse.leaderboard || []);
+          // Extract leaderboard entries - ei_worker returns topEntriesList
+          let leaderboardData = apiResponse.topEntriesList || [];
+
+          console.log('Extracted leaderboardData length:', leaderboardData.length);
 
           if (!Array.isArray(leaderboardData)) {
             console.error('Expected leaderboardData to be an array, got:', typeof leaderboardData);
+            process.exit(1);
+          }
+
+          if (leaderboardData.length === 0) {
+            console.error('No leaderboard entries found!');
             console.error('Full response:', JSON.stringify(apiResponse, null, 2));
             process.exit(1);
           }
@@ -74,10 +84,10 @@ jobs:
             date: today,
             complete: false,
             observed_entries: leaderboardData.length,
-            entries: leaderboardData.map((entry, index) => ({
-              rank: String(index + 1),
-              player: entry.name || entry.player_name || entry.player || 'Unknown',
-              score: String(entry.score || entry.earnings || 0),
+            entries: leaderboardData.map((entry) => ({
+              rank: String(entry.rank),
+              player: entry.alias || entry.name || entry.player_name || 'Unknown',
+              score: String(entry.score || 0),
               source: 'ei_worker'
             }))
           };
@@ -85,7 +95,7 @@ jobs:
           // Save the daily snapshot
           const snapshotPath = path.join(dataDir, `${today}.json`);
           fs.writeFileSync(snapshotPath, JSON.stringify(dataSnapshot, null, 2));
-          console.log(`Saved leaderboard snapshot: ${snapshotPath}`);
+          console.log(`✓ Saved leaderboard snapshot: ${snapshotPath}`);
 
           // Update dates.json
           const datesPath = path.join(dataDir, 'dates.json');
@@ -100,20 +110,20 @@ jobs:
             dates.push(today);
             dates.sort(); // Keep in chronological order
             fs.writeFileSync(datesPath, JSON.stringify(dates, null, 2));
-            console.log(`Updated dates.json with new date: ${today}`);
+            console.log(`✓ Updated dates.json with new date: ${today}`);
           } else {
             console.log(`Date ${today} already exists in dates.json`);
           }
 
           // Write a summary
-          console.log(`\nLeaderboard Update Summary:`);
-          console.log(`- Date: ${today}`);
-          console.log(`- Entries fetched: ${dataSnapshot.observed_entries}`);
-          console.log(`- Top player: ${dataSnapshot.entries[0]?.player || 'N/A'}`);
+          console.log(`\n✓ Leaderboard Update Summary:`);
+          console.log(`  Date: ${today}`);
+          console.log(`  Entries fetched: ${dataSnapshot.observed_entries}`);
+          console.log(`  Top player: ${dataSnapshot.entries[0]?.player || 'N/A'}`);
+          console.log(`  Score: ${dataSnapshot.entries[0]?.score || 'N/A'}`);
 
           EOF
-        env:
-          API_RESPONSE: ${{ steps.fetch.outputs.response }}
+
 
 
       - name: Commit and push changes
