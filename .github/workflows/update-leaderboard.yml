@@ -56,7 +56,7 @@ jobs:
 
           // Get today's date in YYYY-MM-DD format
           const today = new Date().toISOString().split('T')[0];
-          const dataDir = path.join('egg-leaderboard', 'data');
+          const dataDir = 'data';
 
           // Ensure data directory exists
           if (!fs.existsSync(dataDir)) {
@@ -129,8 +129,8 @@ jobs:
       - name: Debug - Check files exist
         run: |
           echo "Current directory: $(pwd)"
-          echo "Files in egg-leaderboard/data/:"
-          ls -la egg-leaderboard/data/ || echo "Directory not found!"
+          echo "Files in data/:"
+          ls -la data/ || echo "Directory not found!"
           echo ""
           echo "Git status:"
           git status
@@ -141,7 +141,7 @@ jobs:
           git config --local user.name "GitHub Action"
 
           # Force add all files (untracked and modified)
-          git add -f egg-leaderboard/data/
+          git add -f data/
 
           # Check git status before commit
           echo "Git status after add:"
