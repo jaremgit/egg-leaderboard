@@ -2,11 +2,10 @@
 
 **This is a vibe-coded hobby project.** I am not a professional developer — I
 built this with heavy help from AI coding assistants, by describing what I
-wanted and iterating on the result rather than writing most of the code
+wanted and iterating on the result rather than writing the code
 myself. If you're a developer reading this, please review it with that in
 mind: there may be rough edges, non-idiomatic patterns, or things a more
-experienced dev would structure differently. Issues and PRs pointing that out
-are genuinely welcome.
+experienced dev would structure differently. Feedback is very welcomed.
 
 This project is unofficial, fan-made, and **not affiliated with or endorsed
 by Auxbrain / Egg, Inc.** in any way.
@@ -16,10 +15,9 @@ by Auxbrain / Egg, Inc.** in any way.
 ## What this actually is (plain English)
 
 Egg, Inc.'s in-game leaderboard only ever shows you the *current* top
-players — once a new week starts, last week's rankings are gone forever. This
-site is a scrapbook of those leaderboards over time: every week it saves a
-snapshot of the top 100 players on the ALL_TIME / Grade AAA (Grade 5)
-leaderboard, so you can look back and see how rankings and scores have
+players — once a player updates their score, the old data is overwritten. This
+site is a scrapbook of those leaderboards over time: I started by manually uploading as much saved data (from screenshots/old bot commands etc) from the community as I could, going forward every week it saves a
+snapshot of the top 100 players on the ALL_TIME / Grade AAA leaderboard, so you can look back and see how rankings and scores have
 changed, search for a specific player's history, and see graphs of their
 progress.
 
@@ -31,6 +29,8 @@ in-game ID and publish your own rank/score to that week's snapshot yourself.
 None of this is officially sanctioned by the game's developers — it works by
 piggybacking on a community-made API (more on that below), the same way
 several other unofficial Egg, Inc. tools do.
+
+If you'd prefer to update your score without providing your in-game ID OR you have your own historical data to contribute, you can ping me in the Egg, Inc. Discord (username `@jarem`) and I can add it manually. (I do need it to have a Date, Score(s), Rank(s) and Player name(s))
 
 ## What this is, for people who can actually read code
 
@@ -109,7 +109,7 @@ original ideas:
 
 If you recognize other patterns here that came from your project and I've
 failed to credit it, please open an issue — that's an oversight, not
-intentional.
+intentional. I am immensely grateful to those that share their work and make the community better, and I want to give credit where it's due.
 
 ## Project structure
 
@@ -153,6 +153,8 @@ historical/manual, and two ongoing/automated:
 	 screenshots -> tabulate rank/player/score per date -> hand-write or
 	 script a `data/<date>.json` file matching the existing shape, then add
 	 the date to `dates.json`).
+   - Due to the manual nature of this process, some early snapshots may have transcription errors or missing entries. If you notice any, please let me know and I can correct them.
+
 2. **Weekly automated pull** - every Monday, `update-leaderboard.yml` fetches
    the public top-100 ALL_TIME AAA leaderboard from `ei_worker`, merges in any
    player submissions made earlier that day (so they aren't overwritten), and
@@ -207,7 +209,7 @@ submit.
 
 ## Contributing / feedback
 
-Since this was largely AI-assisted and I'm not an experienced developer,
+Since this was pretty much entirely built by AI and I'm not an experienced developer,
 feedback on code quality, security, or architecture is especially welcome —
-please open an issue or PR rather than assuming something was done a
-particular way for a good reason. It might just be an oversight.
+please let me know on discord rather than assuming something was done a
+particular way for a good reason.
