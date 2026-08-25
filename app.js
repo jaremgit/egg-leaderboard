@@ -43,6 +43,7 @@ const leaderboardBody = document.getElementById("leaderboard-body");
 const playerSearch = document.getElementById("player-search");
 const clearSearchButton = document.getElementById("clear-search");
 const searchStatus = document.getElementById("search-status");
+const otherMatchesList = document.getElementById("other-matches-list");
 const searchResultsTable = document.getElementById("search-results-table");
 const searchResultsBody = document.getElementById("search-results-body");
 const playerSummary = document.getElementById("player-summary");
@@ -92,6 +93,8 @@ const jumpControlsButton = document.getElementById("jump-controls-button");
 const jumpLeaderboardButton = document.getElementById("jump-leaderboard-button");
 const submitConfirmButton = document.getElementById("submit-confirm-button");
 const submitCancelButton = document.getElementById("submit-cancel-button");
+const submitSearchAgainButton = document.getElementById("submit-search-again-button");
+const submitLookupSection = document.getElementById("submit-lookup-section");
 const savedEidsWrapper = document.getElementById("saved-eids-wrapper");
 const savedEidsList = document.getElementById("saved-eids-list");
 const saveEidCheckbox = document.getElementById("save-eid-checkbox");
@@ -443,7 +446,7 @@ async function loadLeaderboard(date) {
     }
 
     statusText.textContent =
-      `${sortedEntries.length} observed entries — partial snapshot`;
+      `${sortedEntries.length} observed entries`;
 
     updateNavigationButtons();
   } catch (error) {
@@ -552,6 +555,34 @@ function searchForPlayer(playerName) {
   playerSearch.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+// Toggles/renders the list of other players matching the current search
+// term (see the "X other matching players" link in the search status line).
+// Clicking a name in the list re-runs the search focused on that player.
+function renderOtherMatchesList(names) {
+  if (!otherMatchesList) return;
+
+  const isCurrentlyVisible = !otherMatchesList.classList.contains("hidden");
+  otherMatchesList.innerHTML = "";
+
+  if (isCurrentlyVisible) {
+    otherMatchesList.classList.add("hidden");
+    return;
+  }
+
+  names.forEach(name => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "other-matches-item";
+    item.textContent = name;
+    item.addEventListener("click", () => {
+      searchForPlayer(name);
+    });
+    otherMatchesList.appendChild(item);
+  });
+
+  otherMatchesList.classList.remove("hidden");
+}
+
 // Applies historyListExpanded to the "Full snapshot history" list and
 // updates the header's label/aria-expanded state to match.
 function applyHistoryListExpandedState() {
@@ -596,6 +627,10 @@ async function searchPlayers() {
   playerSummary.innerHTML = "";
   playerSummary.classList.add("hidden");
   hideScoreChart();
+  if (otherMatchesList) {
+    otherMatchesList.innerHTML = "";
+    otherMatchesList.classList.add("hidden");
+  }
 
   if (searchTerm.length === 0) {
     searchStatus.textContent = "";
@@ -718,12 +753,29 @@ async function searchPlayers() {
   });
 
   const extraPlayers = matchingNames.length - 1;
+  const otherMatchingNames = matchingNames
+    .filter(name => name !== focusedPlayer)
+    .sort((a, b) => a.localeCompare(b));
 
-  searchStatus.textContent =
-    `${matches.length} snapshot${matches.length === 1 ? "" : "s"} found for ${focusedPlayer}` +
+  searchStatus.innerHTML =
+    `${matches.length} snapshot${matches.length === 1 ? "" : "s"} found for ${escapeHtml(focusedPlayer)}` +
     (extraPlayers > 0
-      ? ` · ${extraPlayers} other matching player${extraPlayers === 1 ? "" : "s"}`
+      ? ` · <span id="other-matches-toggle" class="other-matches-toggle" role="button" tabindex="0">` +
+        `${extraPlayers} other matching player${extraPlayers === 1 ? "" : "s"}</span>`
       : "");
+
+  const otherMatchesToggle = document.getElementById("other-matches-toggle");
+  if (otherMatchesToggle && otherMatchesList) {
+    otherMatchesToggle.addEventListener("click", () => {
+      renderOtherMatchesList(otherMatchingNames);
+    });
+    otherMatchesToggle.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        renderOtherMatchesList(otherMatchingNames);
+      }
+    });
+  }
 
      searchResultsTable.classList.remove("hidden");
      if (historyHeader) {
@@ -1333,7 +1385,9 @@ function resetSubmitModal() {
   submitStatus.textContent = "";
   submitStatus.className = "status";
   submitPreview.classList.add("hidden");
-  submitLookupForm.classList.remove("hidden");
+  if (submitLookupSection) {
+    submitLookupSection.classList.remove("hidden");
+  }
   submitLookupButton.disabled = false;
   if (submitPreviewLastSeen) {
     submitPreviewLastSeen.textContent = "";
@@ -1420,7 +1474,9 @@ if (submitLookupForm) {
         : "Here's your current ranking. Confirm below to add it to the leaderboard.";
       submitStatus.className = "status";
 
-      submitLookupForm.classList.add("hidden");
+      if (submitLookupSection) {
+        submitLookupSection.classList.add("hidden");
+      }
       submitPreview.classList.remove("hidden");
     } catch (error) {
       submitStatus.textContent = error.message;
@@ -1478,6 +1534,12 @@ if (submitCancelButton) {
   });
 }
 
+if (submitSearchAgainButton) {
+  submitSearchAgainButton.addEventListener("click", () => {
+    resetSubmitModal();
+  });
+}
+
 clearSearchButton.addEventListener("click", () => {
   playerSearch.value = "";
   searchResultsBody.innerHTML = "";
@@ -1491,6 +1553,10 @@ clearSearchButton.addEventListener("click", () => {
   playerSummary.innerHTML = "";
   playerSummary.classList.add("hidden");
   searchStatus.textContent = "";
+  if (otherMatchesList) {
+    otherMatchesList.innerHTML = "";
+    otherMatchesList.classList.add("hidden");
+  }
   hideScoreChart();
   lastSearchedPlayer = null;
   playerSearch.focus();

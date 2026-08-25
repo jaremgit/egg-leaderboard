@@ -33,18 +33,22 @@
        size/position for smaller screens. -->
   <div id="date-format-floater" class="date-format-floater">
     <div class="jump-buttons">
-      <button id="jump-top-button" type="button" title="Jump to top">⬆ Top</button>
-      <button id="jump-search-button" type="button" title="Jump to player search">🔍 Search</button>
-      <button id="jump-controls-button" type="button" title="Jump to snapshot date selection">📅 Date</button>
-      <button id="jump-leaderboard-button" type="button" title="Jump to snapshot leaderboard">🏆 Snapshot</button>
+      <button id="jump-top-button" type="button" class="jump-button-top" title="Jump to top">⬆ Top</button>
+      <div class="jump-buttons-row">
+        <button id="jump-search-button" type="button" title="Jump to player search">🔍 Search</button>
+        <button id="jump-controls-button" type="button" title="Jump to snapshot date selection">📅 Date</button>
+      </div>
+      <button id="jump-leaderboard-button" type="button" class="jump-button-wide" title="Jump to snapshot leaderboard">🏆 Snapshot</button>
     </div>
-    <label for="date-format-select">Date format</label>
-    <select id="date-format-select">
-      <option value="dmy">DD/MM/YYYY</option>
-      <option value="mdy">MM/DD/YYYY</option>
-      <option value="iso">YYYY-MM-DD</option>
-      <option value="long">Jan 01 2000</option>
-    </select>
+    <div class="date-format-row">
+      <label for="date-format-select">📆 Format</label>
+      <select id="date-format-select">
+        <option value="dmy">DD/MM/YYYY</option>
+        <option value="mdy">MM/DD/YYYY</option>
+        <option value="iso">YYYY-MM-DD</option>
+        <option value="long">Jan 01 2000</option>
+      </select>
+    </div>
   </div>
 
   <header class="site-header">
@@ -88,6 +92,7 @@
           </div>
 
           <p id="search-status" class="status"></p>
+          <div id="other-matches-list" class="other-matches-list hidden"></div>
         </div>
 
         <div class="lookup-column submit-column">
@@ -233,35 +238,37 @@
         <button id="close-submit-modal" class="modal-close" type="button">&times;</button>
       </div>
       <div class="modal-body">
-        <p class="submit-help">
-          Enter your Egg Inc ID to look up your current ATL details. Your ID is never sent to our server except for this lookup, and never published - only
-          your name/rank/score are saved, the same info already visible on
-          the leaderboard. Nothing is published until you confirm your submission afer look-up.
-        </p>
-        <p class="submit-help">
-          Your ID can optionally be remembered in this browser (only on this device) so you can quickly switch
-          between accounts next time - see the saved IDs below.
-        </p>
+        <div id="submit-lookup-section">
+          <p class="submit-help">
+            Enter your Egg Inc ID to look up your current ATL details. Your ID is never sent to our server except for this lookup, and never published - only
+            your name/rank/score are saved, the same info already visible on
+            the leaderboard. Nothing is published until you confirm your submission afer look-up.
+          </p>
+          <p class="submit-help">
+            Your ID can optionally be remembered in this browser (only on this device) so you can quickly switch
+            between accounts next time - see the saved IDs below.
+          </p>
 
-        <div id="saved-eids-wrapper" class="saved-eids-wrapper hidden">
-          <div id="saved-eids-list" class="saved-eids-list"></div>
+          <div id="saved-eids-wrapper" class="saved-eids-wrapper hidden">
+            <div id="saved-eids-list" class="saved-eids-list"></div>
+          </div>
+
+          <form id="submit-lookup-form" class="submit-controls">
+            <label for="submit-eid">EggInc ID</label>
+            <input
+              id="submit-eid"
+              type="text"
+              placeholder="EI0000000000000000"
+              autocomplete="off"
+              required
+            >
+            <button id="submit-lookup-button" type="submit">Look up</button>
+          </form>
+          <label class="save-eid-checkbox-label">
+            <input id="save-eid-checkbox" type="checkbox" checked>
+            Remember this ID on this device
+          </label>
         </div>
-
-        <form id="submit-lookup-form" class="submit-controls">
-          <label for="submit-eid">EggInc ID</label>
-          <input
-            id="submit-eid"
-            type="text"
-            placeholder="EI0000000000000000"
-            autocomplete="off"
-            required
-          >
-          <button id="submit-lookup-button" type="submit">Look up</button>
-        </form>
-        <label class="save-eid-checkbox-label">
-          <input id="save-eid-checkbox" type="checkbox" checked>
-          Remember this ID on this device
-        </label>
 
         <p id="submit-status" class="status"></p>
 
@@ -283,6 +290,7 @@
 
           <div class="submit-preview-actions">
             <button id="submit-confirm-button" type="button">Confirm &amp; Submit</button>
+            <button id="submit-search-again-button" type="button" class="secondary">Search again</button>
             <button id="submit-cancel-button" type="button" class="secondary">Cancel</button>
           </div>
         </div>
