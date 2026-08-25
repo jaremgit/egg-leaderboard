@@ -1,0 +1,14 @@
+{
+  "_comment": "Player alias mapping for handling name changes. Structure: canonical_name -> array of all known aliases (including the current name). When a player changes names, add their old name to the aliases array of their canonical entry.",
+  "_example": {
+    "CurrentPlayerName": ["CurrentPlayerName", "OldName", "EvenOlderName"],
+    "AnotherPlayer": ["AnotherPlayer", "AltName"]
+  },
+  "RAIYC": ["RAIYC", ""],
+  "NightHawkRVA": ["NightHawkRVA", "NightHawk"],
+  "♥︎chrispresso♥︎": ["♥︎chrispresso♥︎", "chrispresso"],
+  "L0st.T": ["L0st.T", "L0st T."],
+  "TabbyTheLucysCat": ["TabbyTheLucysCat", "TabbyCat"],
+  "MEATYJ0E": ["MEATYJ0E", "MEATYJOE"],
+  "JucyLucyTheCatMum": ["JucyLucyTheCatMum", "JucyLucyspresso"]
+}

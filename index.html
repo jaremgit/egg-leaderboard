@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<!--
+  Egg Inc Leaderboard - index.html
+  ---------------------------------
+  This page is intentionally simple: it just defines the HTML structure and
+  ids, then styles.css handles appearance and app.js handles behavior.
+
+  Sections in this file:
+    <header>          - page title/intro
+    .submission-notice - the "have data to submit?" banner
+    <main>
+      .search-card     - player search box, summary cards, and chart
+      .controls-card   - date dropdown + prev/next + heatmap/gaps buttons
+      .leaderboard-card - the table showing the selected date's leaderboard
+    #heatmap-modal     - popup for the "Data Coverage" button
+    #gaps-modal        - popup for the "Data Gaps" button
+
+  If you add a new element that JavaScript needs to control, give it an id
+  and reference that id in app.js (see the DOM ELEMENT REFERENCES section
+  near the top of app.js).
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EI ATL Archive</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥇</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Floating date-format toggle. Fixed position so it stays put while
+       scrolling; CSS (.date-format-floater) handles auto-adjusting its
+       size/position for smaller screens. -->
+  <div id="date-format-floater" class="date-format-floater">
+    <label for="date-format-select">Date format</label>
+    <select id="date-format-select">
+      <option value="dmy">DD/MM/YYYY</option>
+      <option value="mdy">MM/DD/YYYY</option>
+      <option value="iso">YYYY-MM-DD</option>
+      <option value="long">Jan 01 2000</option>
+    </select>
+  </div>
+
+  <header class="site-header">
+    <div class="container">
+      <p class="eyebrow">Historical archive</p>
+      <h1>Egg Inc All Time Leaderboard</h1>
+      <p class="subtitle">
+        Explore archived All Time leaderboard scores and rankings!
+      </p>
+    </div>
+  </header>
+
+  <div class="submission-notice">
+    <div class="container">
+      <p>
+        Have leaderboard data to submit? Please ping <strong>@jarem</strong> in the 
+        <a href="https://discord.gg/egginc" target="_blank" rel="noopener noreferrer">Egg Inc Discord</a>!
+      </p>
+    </div>
+  </div>
+
+  <main class="container">
+    <section class="search-card">
+      <div class="lookup-columns">
+        <div class="lookup-column search-column">
+          <p class="eyebrow">Player lookup</p>
+          <h2>Search player history</h2>
+          <p class="search-help">
+            Search players recorded in the archived snapshots.
+          </p>
+
+          <div class="search-controls">
+            <label for="player-search">Player name</label>
+            <input
+              id="player-search"
+              type="search"
+              placeholder
+              autocomplete="off"
+            >
+            <button id="clear-search" type="button">Clear</button>
+          </div>
+
+          <p id="search-status" class="status"></p>
+        </div>
+
+        <div class="lookup-column submit-column">
+          <p class="eyebrow">EID Search & Submission</p>
+          <h2>Submit your score</h2>
+          <p class="search-help">
+            Look up your current ATL details and optionally add your ranking to this archive!
+          </p>
+
+          <div class="submit-score-row">
+            <button id="submit-score-button" type="button">🏆 Submit Your Score</button>
+          </div>
+        </div>
+      </div>
+
+<div id="player-summary" class="player-summary hidden"></div>
+
+      <div id="score-chart-container" class="score-chart-container hidden">
+        <div class="chart-heading">
+          <div>
+            <p class="eyebrow">Progression</p>
+            <h3 id="chart-title">Score over time</h3>
+          </div>
+
+          <div class="chart-controls">
+            <button
+              id="score-chart-button"
+              class="chart-toggle active"
+              type="button"
+            >
+              Score
+            </button>
+
+            <button
+              id="rank-chart-button"
+              class="chart-toggle"
+              type="button"
+            >
+              Rank
+            </button>
+
+            <select
+              id="rank-scale-zoom"
+              class="rank-scale-zoom hidden"
+            >
+              <option value="default">Default Zoom</option>
+              <option value="0-10">Top 10</option>
+              <option value="0-25">Top 25</option>
+              <option value="0-50">Top 50</option>
+              <option value="0-100">Top 100</option>
+            </select>
+
+            <select
+              id="data-filter-select"
+              class="data-filter-select"
+            >
+              <option value="raw">Raw Data</option>
+              <option value="weekly-peak">Weekly Peak</option>
+              <option value="weekly">Weekly Average</option>
+              <option value="monthly-peak">Monthly Peak</option>
+              <option value="monthly">Monthly Average</option>
+            </select>
+          </div>
+
+          <p id="chart-status" class="status"></p>
+        </div>
+
+    <div class="chart-wrapper">
+      <canvas id="score-chart"></canvas>
+    </div>
+  </div>
+
+      <div id="history-header" class="history-header hidden" role="button" tabindex="0" aria-expanded="true">
+        <h3 class="history-title">Full snapshot history</h3>
+        <span id="history-toggle-button" class="history-toggle">Hide list ▲</span>
+      </div>
+
+      <div id="history-table-wrapper" class="table-wrapper hidden">
+        <table id="search-results-table" class="hidden">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Rank</th>
+              <th>Player</th>
+              <th>Total score</th>
+            </tr>
+          </thead>
+          <tbody id="search-results-body"></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="controls-card">
+      <div class="date-control">
+        <label for="date-select">Leaderboard date</label>
+        <select id="date-select">
+          <option>Loading dates...</option>
+        </select>
+      </div>
+      <div class="navigation-buttons">
+        <button id="previous-date" type="button">← Previous</button>
+        <button id="next-date" type="button">Next →</button>
+        <button id="heatmap-button" type="button">📅 Data Coverage</button>
+        <button id="gaps-button" type="button">📊 Data Gaps</button>
+      </div>
+    </section>
+
+    <section class="leaderboard-card">
+      <div class="leaderboard-heading">
+        <div>
+          <p class="eyebrow">Snapshot</p>
+          <h2 id="selected-date">Loading...</h2>
+        </div>
+
+        <p id="status" class="status">Loading...</p>
+      </div>
+
+      <div class="notice">
+        This archive contains observed entries from screenshots. A snapshot
+        may be incomplete.
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Player</th>
+              <th>Total score</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Submit Score Modal -->
+  <div id="submit-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content submit-modal-content">
+      <div class="modal-header">
+        <h2>Submit your ranking</h2>
+        <button id="close-submit-modal" class="modal-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="submit-help">
+          Enter your Egg Inc ID to look up your current ATL details. Your ID is never stored or shown publicly - only
+          your name/rank/score are saved, the same info already visible on
+          the leaderboard. Nothing is published until you confirm your submission afer look-up.
+        </p>
+
+        <form id="submit-lookup-form" class="submit-controls">
+          <label for="submit-eid">EggInc ID</label>
+          <input
+            id="submit-eid"
+            type="text"
+            placeholder="EI0000000000000000"
+            autocomplete="off"
+            required
+          >
+          <button id="submit-lookup-button" type="submit">Look up</button>
+        </form>
+
+        <p id="submit-status" class="status"></p>
+
+        <div id="submit-preview" class="submit-preview hidden">
+          <div class="summary-item">
+            <p class="summary-label">Player</p>
+            <p id="submit-preview-player" class="summary-value"></p>
+          </div>
+          <div class="summary-item">
+            <p class="summary-label">Rank</p>
+            <p id="submit-preview-rank" class="summary-value"></p>
+          </div>
+          <div class="summary-item">
+            <p class="summary-label">Score</p>
+            <p id="submit-preview-score" class="summary-value"></p>
+          </div>
+
+          <div class="submit-preview-actions">
+            <button id="submit-confirm-button" type="button">Confirm &amp; Submit</button>
+            <button id="submit-cancel-button" type="button" class="secondary">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Heatmap Modal -->
+  <div id="heatmap-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Data Coverage Heatmap</h2>
+        <button id="close-heatmap-modal" class="modal-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="heatmap-container">
+          <div id="heatmap-legend" class="heatmap-legend"></div>
+          <div id="heatmap-grid" class="heatmap-grid"></div>
+        </div>
+        <p id="heatmap-status" class="status"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Gaps Modal -->
+  <div id="gaps-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Data Gaps Report</h2>
+        <button id="close-gaps-modal" class="modal-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="gaps-container" class="gaps-container">
+          <div id="gaps-list" class="gaps-list"></div>
+        </div>
+        <p id="gaps-status" class="status"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>
+      I have no coding knowledge, this site was 100% vibe coded and the data collected was generously provided by community members, although I've tried to keep things as accurate as possible there may be mistakes. 
+      <br>
+      For submissions, suggestions or requests, please ping <strong>@jarem</strong> in the 
+      <a href="https://discord.gg/egginc" target="_blank" rel="noopener noreferrer">Egg Inc Discord</a>!
+    </p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
+</html>

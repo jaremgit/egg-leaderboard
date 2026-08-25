@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "bash -c 'if [[ \"$(git log -1 --pretty=%B)\" == *\"player submission\"* ]]; then echo \"Skipping build - individual EID submission commit\"; exit 0; else echo \"Proceeding with build\"; exit 1; fi'"
+}

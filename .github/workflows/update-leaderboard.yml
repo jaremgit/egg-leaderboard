@@ -1,0 +1,190 @@
+name: Update Leaderboard Data
+
+on:
+  schedule:
+    # Run every Monday at 7:00 AM Los Angeles time (2 PM UTC during PDT, 3 PM UTC during PST)
+    # Using 2 PM UTC for best year-round coverage
+    - cron: '0 14 * * 1'
+  # Allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-leaderboard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.1.7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.0.2
+        with:
+          node-version: '22'
+
+      - name: Fetch leaderboard data from ei_worker
+        id: fetch
+        run: |
+          # Fetch leaderboard data from ei_worker API and save to file
+          curl -s "https://ei_worker.tylertms.workers.dev/leaderboard?eid=${{ secrets.EI_EID }}&scope=ALL_TIME&grade=5" > leaderboard_response.json
+          echo "API fetch completed"
+          echo "Response preview:"
+          head -c 500 leaderboard_response.json
+
+      - name: Process and save leaderboard data
+        id: process
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+
+          // Read the API response from file
+          let apiResponse;
+          try {
+            const responseContent = fs.readFileSync('leaderboard_response.json', 'utf8');
+            apiResponse = JSON.parse(responseContent);
+          } catch (e) {
+            console.error('Failed to parse API response:', e.message);
+            process.exit(1);
+          }
+
+          // Get today's date in YYYY-MM-DD format
+          const today = new Date().toISOString().split('T')[0];
+          const dataDir = 'data';
+
+          // Ensure data directory exists
+          if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+          }
+
+          // Extract leaderboard entries - ei_worker returns topEntriesList
+          let leaderboardData = apiResponse.topEntriesList || [];
+
+          if (!Array.isArray(leaderboardData)) {
+            console.error('Expected leaderboardData to be an array, got:', typeof leaderboardData);
+            process.exit(1);
+          }
+
+          if (leaderboardData.length === 0) {
+            console.error('No leaderboard entries found!');
+            console.error('Full response:', JSON.stringify(apiResponse, null, 2));
+            process.exit(1);
+          }
+
+          // Build the freshly-pulled top-100 entries.
+          const pulledEntries = leaderboardData.map((entry) => ({
+            rank: String(entry.rank),
+            player: entry.alias || entry.name || entry.player_name || 'Unknown',
+            score: String(entry.score || 0),
+            source: 'ei_worker'
+          }));
+
+          // If a snapshot for today already exists (e.g. someone used the
+          // site's "Submit Your Score" popup earlier today), preserve any
+          // player-submitted rows instead of blindly overwriting the file -
+          // otherwise this scheduled pull would silently erase them.
+          const snapshotPath = path.join(dataDir, `${today}.json`);
+          let previousSubmissions = [];
+
+          if (fs.existsSync(snapshotPath)) {
+            try {
+              const previous = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+              previousSubmissions = (previous.entries || []).filter(
+                (row) => row.source === 'submission'
+              );
+            } catch (e) {
+              console.error('Could not parse existing snapshot, ignoring it:', e.message);
+            }
+          }
+
+          // Drop any preserved submission that the fresh pull now also
+          // covers (matched by player name), so the pulled data wins for
+          // players who are naturally in the top-100 pull.
+          const pulledPlayers = new Set(
+            pulledEntries.map((row) => row.player.toLowerCase())
+          );
+          const mergedSubmissions = previousSubmissions.filter(
+            (row) => row.player && !pulledPlayers.has(row.player.toLowerCase())
+          );
+
+          if (mergedSubmissions.length > 0) {
+            console.log(`Preserving ${mergedSubmissions.length} player submission(s) from earlier today`);
+          }
+
+          const entries = [...pulledEntries, ...mergedSubmissions];
+
+          // Build the data structure
+          const dataSnapshot = {
+            date: today,
+            complete: false,
+            observed_entries: entries.length,
+            entries
+          };
+
+          // Save the daily snapshot
+          fs.writeFileSync(snapshotPath, JSON.stringify(dataSnapshot, null, 2));
+          console.log(`✓ Saved leaderboard snapshot: ${snapshotPath}`);
+
+          // Update dates.json
+          const datesPath = path.join(dataDir, 'dates.json');
+          let dates = [];
+
+          if (fs.existsSync(datesPath)) {
+            dates = JSON.parse(fs.readFileSync(datesPath, 'utf8'));
+          }
+
+          // Add today's date if not already present
+          if (!dates.includes(today)) {
+            dates.push(today);
+            dates.sort(); // Keep in chronological order
+            fs.writeFileSync(datesPath, JSON.stringify(dates, null, 2));
+            console.log(`✓ Updated dates.json with new date: ${today}`);
+          } else {
+            console.log(`Date ${today} already exists in dates.json`);
+          }
+
+          // Write a summary
+          console.log(`\n✓ Leaderboard Update Summary:`);
+          console.log(`  Date: ${today}`);
+          console.log(`  Entries fetched: ${dataSnapshot.observed_entries}`);
+          console.log(`  Top player: ${dataSnapshot.entries[0]?.player || 'N/A'}`);
+          console.log(`  Score: ${dataSnapshot.entries[0]?.score || 'N/A'}`);
+
+          EOF
+
+
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # Force add all files (untracked and modified)
+          git add -f data/
+
+          # Check git status before commit
+          echo "Git status after add:"
+          git status
+
+          # Only commit if there are changes
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update leaderboard data - $(date -u +'%Y-%m-%d')"
+            git push
+            echo "Changes pushed to repository"
+          fi
+
+      - name: Trigger Vercel deploy
+        run: |
+          # Individual EID submission commits (made directly by the
+          # Cloudflare Worker) don't trigger a Vercel deploy - see
+          # vercel.json's ignoreCommand. This weekly Action is the one
+          # place that should always cause a real deploy, since it's when
+          # the permanent archive (and any pending submissions merged into
+          # it) is finalized. We trigger it explicitly via a Deploy Hook
+          # instead of relying on git-push auto-deploy.
+          curl -s -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+          echo "Triggered Vercel deploy hook"

@@ -1,0 +1,53 @@
+# Cloudflare Worker configuration for the "submit your score" feature.
+#
+# This Worker is intentionally separate from the static site (index.html /
+# styles.css / app.js). It receives a visitor's EggInc ID (EID), looks up
+# their ALL_TIME / Grade 5 (AAA) leaderboard entry via ei_worker, and commits
+# just their Name/Score/Rank into this repo's data/*.json files. The EID
+# itself is never written to KV, logs, or git - only a one-way hash of it is
+# stored (and only long enough to rate-limit to one submission per day).
+#
+# SETUP (run once from the worker/ folder, see worker/README.md for details):
+#   npm install
+#   npx wrangler login
+#   npx wrangler kv namespace create RATE_LIMIT_KV
+#     -> paste the returned id below into the [[kv_namespaces]] section
+#   npx wrangler secret put GITHUB_TOKEN
+#   npx wrangler secret put SUBMIT_HASH_SALT
+#   npx wrangler deploy
+
+name = "egg-leaderboard-submit"
+main = "index.js"
+compatibility_date = "2024-11-01"
+
+# One request per invocation, no need for more than the free tier default.
+[observability]
+enabled = true
+
+# Bound as env.RATE_LIMIT_KV inside index.js.
+# Replace "REPLACE_WITH_KV_NAMESPACE_ID" with the id printed by
+# `wrangler kv namespace create RATE_LIMIT_KV`.
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "415b12c98fb9469e88fbd2107285d23e"
+
+# Bound as env.PENDING_SUBMISSIONS_KV inside index.js. Holds today's (and
+# recent days') player submissions so the site can show them immediately,
+# without waiting for a GitHub commit + Vercel rebuild. The weekly GitHub
+# Action folds these into the permanent data/<date>.json archive and clears
+# them out - this KV store is only ever a short-lived "not yet archived"
+# cache, never the source of truth. GitHub is still written on every
+# confirm as today, so nothing depends solely on this KV surviving.
+[[kv_namespaces]]
+binding = "PENDING_SUBMISSIONS_KV"
+id = "5d828271c4854825a5037014c1a30137"
+
+# Non-secret configuration. Secrets (GITHUB_TOKEN, SUBMIT_HASH_SALT) are set
+# separately via `wrangler secret put` and must NOT be added here.
+[vars]
+GITHUB_OWNER = "jaremgit"
+GITHUB_REPO = "egg-leaderboard"
+GITHUB_BRANCH = "main"
+EI_WORKER_BASE = "https://ei_worker.tylertms.workers.dev"
+EI_SCOPE = "ALL_TIME"
+EI_GRADE = "5"
