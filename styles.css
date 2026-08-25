@@ -486,6 +486,68 @@ select:focus {
   flex-wrap: wrap;
 }
 
+.saved-eids-wrapper.hidden {
+  display: none;
+}
+
+.saved-eids-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+
+.saved-eid-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: #101a2a;
+  font-size: 0.8rem;
+}
+
+.saved-eid-pill.active {
+  border-color: var(--blue);
+  background: rgba(77, 156, 255, 0.14);
+}
+
+.saved-eid-pill-name {
+  cursor: pointer;
+}
+
+.saved-eid-pill-name:hover {
+  text-decoration: underline;
+}
+
+.saved-eid-pill button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 2px;
+  font: inherit;
+  line-height: 1;
+}
+
+.saved-eid-pill button:hover {
+  color: var(--blue);
+}
+
+.saved-eid-pill .saved-eid-remove:hover {
+  color: #ff6b6b;
+}
+
+.save-eid-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 10px;
+}
+
 .submit-controls label {
   display: none;
 }
@@ -680,6 +742,14 @@ tbody tr {
 
 tbody tr:hover {
   background: rgba(77, 156, 255, 0.07);
+}
+
+.history-row-clickable {
+  cursor: pointer;
+}
+
+.history-row-clickable:hover {
+  background: rgba(77, 156, 255, 0.14);
 }
 
 .player-summary {

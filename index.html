@@ -228,10 +228,18 @@
       </div>
       <div class="modal-body">
         <p class="submit-help">
-          Enter your Egg Inc ID to look up your current ATL details. Your ID is never stored or shown publicly - only
+          Enter your Egg Inc ID to look up your current ATL details. Your ID is never sent to our server except for this lookup, and never published - only
           your name/rank/score are saved, the same info already visible on
           the leaderboard. Nothing is published until you confirm your submission afer look-up.
         </p>
+        <p class="submit-help">
+          Your ID can optionally be remembered in this browser (only on this device) so you can quickly switch
+          between accounts next time - see the saved IDs below.
+        </p>
+
+        <div id="saved-eids-wrapper" class="saved-eids-wrapper hidden">
+          <div id="saved-eids-list" class="saved-eids-list"></div>
+        </div>
 
         <form id="submit-lookup-form" class="submit-controls">
           <label for="submit-eid">EggInc ID</label>
@@ -244,6 +252,10 @@
           >
           <button id="submit-lookup-button" type="submit">Look up</button>
         </form>
+        <label class="save-eid-checkbox-label">
+          <input id="save-eid-checkbox" type="checkbox" checked>
+          Remember this ID on this device
+        </label>
 
         <p id="submit-status" class="status"></p>
 

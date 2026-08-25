@@ -87,6 +87,9 @@ const submitPreviewRank = document.getElementById("submit-preview-rank");
 const submitPreviewScore = document.getElementById("submit-preview-score");
 const submitConfirmButton = document.getElementById("submit-confirm-button");
 const submitCancelButton = document.getElementById("submit-cancel-button");
+const savedEidsWrapper = document.getElementById("saved-eids-wrapper");
+const savedEidsList = document.getElementById("saved-eids-list");
+const saveEidCheckbox = document.getElementById("save-eid-checkbox");
 
 /* -------------------------------------------------------------------------
    8. HEATMAP MODAL - lazy getters
@@ -309,6 +312,24 @@ async function loadDates() {
     statusText.textContent = error.message;
     previousButton.disabled = true;
     nextButton.disabled = true;
+  }
+}
+
+// Jumps the main snapshot view to a specific date - used when a row in the
+// "Full snapshot history" list is clicked so visitors can inspect that
+// snapshot directly instead of manually stepping through with the dropdown.
+function goToSnapshotDate(date) {
+  if (!availableDates.includes(date)) {
+    return;
+  }
+
+  currentDateIndex = availableDates.indexOf(date);
+  dateSelect.value = date;
+  loadLeaderboard(date);
+
+  const leaderboardSection = document.querySelector(".leaderboard-card");
+  if (leaderboardSection) {
+    leaderboardSection.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
 
@@ -614,6 +635,8 @@ async function searchPlayers() {
 
   matches.forEach(match => {
     const row = document.createElement("tr");
+    row.classList.add("history-row-clickable");
+    row.title = `View the ${formatDate(match.date)} snapshot`;
 
     row.innerHTML = `
       <td>${formatDate(match.date)}</td>
@@ -621,6 +644,10 @@ async function searchPlayers() {
       <td>${escapeHtml(match.player)}</td>
       <td>${formatScore(match.score)}</td>
     `;
+
+    row.addEventListener("click", () => {
+      goToSnapshotDate(match.date);
+    });
 
     searchResultsBody.appendChild(row);
   });
@@ -1055,6 +1082,133 @@ nextButton.addEventListener("click", () => {
 playerSearch.addEventListener("input", searchPlayers);
 
 /* -------------------------------------------------------------------------
+   "Saved EggInc IDs" - lets a visitor remember one or more EIDs on their own
+   device (localStorage only, never sent anywhere except the existing
+   lookup/confirm calls) so they can quickly re-submit for multiple accounts
+   without retyping the ID each time. Loosely modeled after the "recent IDs"
+   pill list used by wasmegg-carpet/egg.
+   ------------------------------------------------------------------------- */
+const SAVED_EIDS_STORAGE_KEY = "savedEids";
+const SAVED_EIDS_MAX = 10;
+
+function getSavedEids() {
+  try {
+    const raw = localStorage.getItem(SAVED_EIDS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function setSavedEids(eids) {
+  localStorage.setItem(SAVED_EIDS_STORAGE_KEY, JSON.stringify(eids));
+}
+
+function addSavedEid(eid) {
+  const eids = getSavedEids();
+
+  if (!eids[eid]) {
+    eids[eid] = {};
+
+    const keys = Object.keys(eids);
+    if (keys.length > SAVED_EIDS_MAX) {
+      // Evict the oldest entry without a nickname/username first; fall back
+      // to the very oldest entry if every saved EID already has a name.
+      const unnamedKey = keys.find(key => !eids[key].nickname && !eids[key].username);
+      delete eids[unnamedKey ?? keys[0]];
+    }
+  }
+
+  setSavedEids(eids);
+  renderSavedEids();
+}
+
+function removeSavedEid(eid) {
+  const eids = getSavedEids();
+  delete eids[eid];
+  setSavedEids(eids);
+  renderSavedEids();
+}
+
+function updateSavedEidUsername(eid, username) {
+  const eids = getSavedEids();
+  if (!eids[eid] || !username || eids[eid].username === username) {
+    return;
+  }
+  eids[eid] = { ...eids[eid], username };
+  setSavedEids(eids);
+  renderSavedEids();
+}
+
+function savedEidDisplayName(eid, entry) {
+  return (entry && (entry.nickname || entry.username)) || eid;
+}
+
+function renderSavedEids() {
+  if (!savedEidsWrapper || !savedEidsList) return;
+
+  const eids = getSavedEids();
+  const entries = Object.entries(eids);
+
+  savedEidsList.innerHTML = "";
+
+  if (entries.length === 0) {
+    savedEidsWrapper.classList.add("hidden");
+    return;
+  }
+
+  savedEidsWrapper.classList.remove("hidden");
+
+  entries.forEach(([eid, entry]) => {
+    const pill = document.createElement("span");
+    pill.className = "saved-eid-pill";
+    if (submitEidInput && submitEidInput.value.trim() === eid) {
+      pill.classList.add("active");
+    }
+
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.className = "saved-eid-edit";
+    editButton.setAttribute("aria-label", "Rename");
+    editButton.textContent = "✎";
+    editButton.addEventListener("click", () => {
+      const name = prompt("Enter a name for this ID:", entry.nickname || entry.username || "");
+      if (name === null) return;
+      const eids2 = getSavedEids();
+      if (!eids2[eid]) return;
+      eids2[eid] = { ...eids2[eid], nickname: name || undefined };
+      setSavedEids(eids2);
+      renderSavedEids();
+    });
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "saved-eid-pill-name";
+    nameSpan.textContent = savedEidDisplayName(eid, entry);
+    nameSpan.title = eid;
+    nameSpan.addEventListener("click", () => {
+      submitEidInput.value = eid;
+      renderSavedEids();
+      submitEidInput.focus();
+    });
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "saved-eid-remove";
+    removeButton.setAttribute("aria-label", "Forget this ID");
+    removeButton.textContent = "\u00d7";
+    removeButton.addEventListener("click", () => {
+      removeSavedEid(eid);
+    });
+
+    pill.appendChild(editButton);
+    pill.appendChild(nameSpan);
+    pill.appendChild(removeButton);
+    savedEidsList.appendChild(pill);
+  });
+}
+
+/* -------------------------------------------------------------------------
    "Submit your ranking" modal - opened via the "Submit Your Score" button.
    Sends the visitor's EggInc ID to the Cloudflare Worker (see
    SUBMIT_WORKER_URL above and worker/README.md) in two steps:
@@ -1074,6 +1228,7 @@ function resetSubmitModal() {
   submitPreview.classList.add("hidden");
   submitLookupForm.classList.remove("hidden");
   submitLookupButton.disabled = false;
+  renderSavedEids();
 }
 
 function openSubmitModal() {
@@ -1081,6 +1236,7 @@ function openSubmitModal() {
   resetSubmitModal();
   submitModal.classList.remove("hidden");
 }
+
 
 function closeSubmitModal() {
   if (!submitModal) return;
@@ -1101,6 +1257,10 @@ if (submitModal) {
       closeSubmitModal();
     }
   });
+}
+
+if (submitEidInput) {
+  submitEidInput.addEventListener("input", renderSavedEids);
 }
 
 if (submitLookupForm) {
@@ -1136,6 +1296,11 @@ if (submitLookupForm) {
       submitPreviewPlayer.textContent = result.player;
       submitPreviewRank.textContent = formatRank(result.rank);
       submitPreviewScore.textContent = formatScore(result.score);
+
+      if (!saveEidCheckbox || saveEidCheckbox.checked) {
+        addSavedEid(eid);
+        updateSavedEidUsername(eid, result.player);
+      }
 
       submitStatus.textContent = result.alreadySubmittedToday
         ? "Here's your current ranking. Note: you've already submitted today, so confirming again will be blocked until tomorrow."
@@ -1173,6 +1338,11 @@ if (submitConfirmButton) {
 
       if (!response.ok || !result.ok) {
         throw new Error(result.error || "Something went wrong. Please try again.");
+      }
+
+      if (!saveEidCheckbox || saveEidCheckbox.checked) {
+        addSavedEid(eid);
+        updateSavedEidUsername(eid, result.player);
       }
 
       submitStatus.textContent =
