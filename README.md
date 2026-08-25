@@ -1,14 +1,47 @@
-# Egg Inc All Time Leaderboard Archive
+# Egg, Inc. ALL_TIME Leaderboard Archive
 
-**Full disclosure, this whole site is vibe-coded, I am NOT a coder/developer. Originally I just wanted to document histroical ATL data but the scope has grown. Please note, this project is unofficial and not affiliated with Auxbrain / Egg, Inc. in any way.**
+**This is a vibe-coded hobby project.** I am not a professional developer — I
+built this with heavy help from AI coding assistants, by describing what I
+wanted and iterating on the result rather than writing most of the code
+myself. If you're a developer reading this, please review it with that in
+mind: there may be rough edges, non-idiomatic patterns, or things a more
+experienced dev would structure differently. Issues and PRs pointing that out
+are genuinely welcome.
 
-A static site that archives historical **Egg, Inc. ALL_TIME / Grade AAA (Grade 5)**
-leaderboard snapshots over time, so rankings and scores that would otherwise be
-overwritten in-game can be searched, graphed, and compared across dates.
+This project is unofficial, fan-made, and **not affiliated with or endorsed
+by Auxbrain / Egg, Inc.** in any way.
 
-Live data comes from two places: a weekly automated pull of the top 100
-players, and a "Submit your score" feature that lets any player privately look
-up and publish their own rank/score on demand.
+---
+
+## What this actually is (plain English)
+
+Egg, Inc.'s in-game leaderboard only ever shows you the *current* top
+players — once a new week starts, last week's rankings are gone forever. This
+site is a scrapbook of those leaderboards over time: every week it saves a
+snapshot of the top 100 players on the ALL_TIME / Grade AAA (Grade 5)
+leaderboard, so you can look back and see how rankings and scores have
+changed, search for a specific player's history, and see graphs of their
+progress.
+
+There's also a "Submit Your Score" button, because the automatic weekly
+snapshot only grabs the top 100 — if you're not in the top 100 (or you just
+want to make sure your entry is captured that week), you can type in your own
+in-game ID and publish your own rank/score to that week's snapshot yourself.
+
+None of this is officially sanctioned by the game's developers — it works by
+piggybacking on a community-made API (more on that below), the same way
+several other unofficial Egg, Inc. tools do.
+
+## What this is, for people who can actually read code
+
+A static frontend (`index.html` / `app.js` / `styles.css`, no build step, no
+framework) reads pre-generated JSON snapshots out of `data/*.json` and renders
+search, history, charts, and leaderboard views client-side. New snapshots are
+produced two ways: a scheduled GitHub Action that pulls the public top-100
+leaderboard once a week, and a Cloudflare Worker that lets an individual
+player look up and publish their own single entry on demand. Both paths
+commit directly to `data/<date>.json` in this repo via the GitHub Contents
+API, which is also what triggers a Vercel redeploy of the static site.
 
 ## How it fits together
 
@@ -39,6 +72,44 @@ up and publish their own rank/score on demand.
 												│  (deployed on Vercel)  │
 												└───────────────────────┘
 ```
+
+## Third-party dependency: I don't run my own leaderboard scraper
+
+**Important for transparency:** all leaderboard data (both the weekly bulk
+pull and individual player lookups) comes from a public API called
+`ei_worker`, hosted by a third party (`tylertms`) at
+`ei_worker.tylertms.workers.dev`. This is **not code I wrote, host, or
+control** — my GitHub Action and Cloudflare Worker just make HTTP requests to
+his existing service and store the results.
+
+Practically, this means:
+- If `ei_worker` goes down, gets rate-limited, or changes its response
+  format, both the weekly snapshot job and the live "Submit Your Score"
+  feature break, and there is nothing I can do about it except wait or find
+  an alternative.
+- I have no SLA, uptime guarantee, or say over that service.
+- This is common practice in the Egg, Inc. fan-tool community — several
+  unofficial tools rely on shared community APIs like this rather than each
+  reimplementing their own scraper — but it's worth being upfront that this
+  project is not self-contained.
+
+## Borrowed ideas from other community tools
+
+Some parts of this project's design are directly inspired by, or adapted
+from, other open-source Egg, Inc. community tools, rather than being
+original ideas:
+
+- **Local/browser-only EID storage** (the "saved IDs" pill buttons in the
+  Submit Your Score modal, so you don't have to retype your ID every time)
+  is modeled directly on how [wasmegg / egg (carpet's
+  tools)](https://github.com/wasmegg-carpet/egg) handles caching a player's
+  EID in browser storage. I read through that project's implementation and
+  adapted the same general pattern (store locally, never send anywhere
+  except when actively submitting, allow renaming/removing saved entries).
+
+If you recognize other patterns here that came from your project and I've
+failed to credit it, please open an issue — that's an oversight, not
+intentional.
 
 ## Project structure
 
@@ -129,3 +200,14 @@ EggInc IDs submitted through the site are only ever held in memory for the
 duration of a single request. They are never logged, stored in KV, or
 committed to git - only the resulting public leaderboard fields (name, score,
 rank, which are already visible in-game and on this site) are persisted.
+Any EID saved for auto-fill convenience (the "saved IDs" feature) is stored
+**only in your own browser's local storage** — it is never sent anywhere
+except back to this site's own submission Worker when you actively choose to
+submit.
+
+## Contributing / feedback
+
+Since this was largely AI-assisted and I'm not an experienced developer,
+feedback on code quality, security, or architecture is especially welcome —
+please open an issue or PR rather than assuming something was done a
+particular way for a good reason. It might just be an oversight.
