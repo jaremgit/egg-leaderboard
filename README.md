@@ -1,5 +1,7 @@
 # Egg Inc All Time Leaderboard Archive
 
+**Full disclosure, this whole site is vibe-coded, I am NOT a coder/developer. Originally I just wanted to document histroical ATL data but the scope has grown. Please note, this project is unofficial and not affiliated with Auxbrain / Egg, Inc. in any way.**
+
 A static site that archives historical **Egg, Inc. ALL_TIME / Grade AAA (Grade 5)**
 leaderboard snapshots over time, so rankings and scores that would otherwise be
 overwritten in-game can be searched, graphed, and compared across dates.
