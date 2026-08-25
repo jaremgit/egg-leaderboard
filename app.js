@@ -85,6 +85,11 @@ const submitPreview = document.getElementById("submit-preview");
 const submitPreviewPlayer = document.getElementById("submit-preview-player");
 const submitPreviewRank = document.getElementById("submit-preview-rank");
 const submitPreviewScore = document.getElementById("submit-preview-score");
+const submitPreviewLastSeen = document.getElementById("submit-preview-last-seen");
+const jumpTopButton = document.getElementById("jump-top-button");
+const jumpSearchButton = document.getElementById("jump-search-button");
+const jumpControlsButton = document.getElementById("jump-controls-button");
+const jumpLeaderboardButton = document.getElementById("jump-leaderboard-button");
 const submitConfirmButton = document.getElementById("submit-confirm-button");
 const submitCancelButton = document.getElementById("submit-cancel-button");
 const savedEidsWrapper = document.getElementById("saved-eids-wrapper");
@@ -233,6 +238,11 @@ let dateFormatMode = localStorage.getItem("dateFormatMode") || "dmy";
 // Whether the "Full snapshot history" list below the chart is expanded.
 // Restored from localStorage so the choice persists across visits.
 let historyListExpanded = localStorage.getItem("historyListExpanded") !== "false";
+
+// Tracks which player's results are currently shown, so we can tell a fresh
+// search apart from the same search re-rendering (e.g. while typing further
+// characters of the same name).
+let lastSearchedPlayer = null;
 
 /* -------------------------------------------------------------------------
    4. DATE / LEADERBOARD LOADING
@@ -470,6 +480,61 @@ async function loadAllLeaderboards() {
   allLeaderboards = results;
 }
 
+// Finds the most recent date this player (matched by canonical/normalized
+// name, same as player search) appears in any loaded snapshot. Returns null
+// if they've never been recorded, or if snapshot data isn't loaded yet.
+function findLastSeenDate(playerName) {
+  if (!playerName || allLeaderboards.length === 0) {
+    return null;
+  }
+
+  const canonicalName = normalizePlayerName(playerName).toLowerCase();
+  let lastSeenDate = null;
+
+  allLeaderboards.forEach(leaderboard => {
+    const hasMatch = leaderboard.entries.some(
+      entry => entry.player.toLowerCase() === canonicalName
+    );
+
+    if (hasMatch && (lastSeenDate === null || leaderboard.date > lastSeenDate)) {
+      lastSeenDate = leaderboard.date;
+    }
+  });
+
+  return lastSeenDate;
+}
+
+// Renders the "last recorded submission" note in the submit preview panel,
+// including a nudge if it's been over a week (or the player has never been
+// recorded before).
+function renderSubmitPreviewLastSeen(playerName) {
+  if (!submitPreviewLastSeen) return;
+
+  const lastSeenDate = findLastSeenDate(playerName);
+
+  if (lastSeenDate === null) {
+    submitPreviewLastSeen.textContent =
+      "🎉 This will be your first recorded submission!";
+    submitPreviewLastSeen.classList.remove("hidden", "nudge-warning");
+    return;
+  }
+
+  const daysSinceLastSeen = daysBetween(lastSeenDate, getTodayIsoDate());
+
+  if (daysSinceLastSeen > 7) {
+    submitPreviewLastSeen.textContent =
+      `⚠️ Last recorded ${daysSinceLastSeen} days ago (${formatDate(lastSeenDate)}) — consider submitting today!`;
+    submitPreviewLastSeen.classList.add("nudge-warning");
+  } else {
+    submitPreviewLastSeen.textContent =
+      `Last recorded ${daysSinceLastSeen} day${daysSinceLastSeen === 1 ? "" : "s"} ago (${formatDate(lastSeenDate)}).`;
+    submitPreviewLastSeen.classList.remove("nudge-warning");
+  }
+
+  submitPreviewLastSeen.classList.remove("hidden");
+}
+
+
 /* -------------------------------------------------------------------------
    5. PLAYER SEARCH
    searchPlayers() runs every time the user types in the search box. It:
@@ -667,6 +732,15 @@ async function searchPlayers() {
      if (historyTableWrapper) {
        historyTableWrapper.classList.remove("hidden");
      }
+
+     // Default the "Full snapshot history" list to collapsed whenever a
+     // *new* player is searched (not on every re-render of the same query),
+     // so long history lists don't dominate the page by default.
+     if (focusedPlayer !== lastSearchedPlayer) {
+       historyListExpanded = false;
+       lastSearchedPlayer = focusedPlayer;
+     }
+
      applyHistoryListExpandedState();
 
      // Reset zoom scaling to default when a new player is searched
@@ -1059,6 +1133,39 @@ if (dateFormatSelect) {
   });
 }
 
+// "Jump to..." buttons in the floating date-format widget - simple smooth
+// scrolls to the page's main sections, handy on long snapshot pages.
+function scrollToElementById(elementId) {
+  const element = document.getElementById(elementId);
+  if (element) {
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+if (jumpTopButton) {
+  jumpTopButton.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
+if (jumpSearchButton) {
+  jumpSearchButton.addEventListener("click", () => {
+    scrollToElementById("search-card");
+  });
+}
+
+if (jumpControlsButton) {
+  jumpControlsButton.addEventListener("click", () => {
+    scrollToElementById("controls-card");
+  });
+}
+
+if (jumpLeaderboardButton) {
+  jumpLeaderboardButton.addEventListener("click", () => {
+    scrollToElementById("leaderboard-card");
+  });
+}
+
 previousButton.addEventListener("click", () => {
   if (currentDateIndex > 0) {
     currentDateIndex -= 1;
@@ -1228,6 +1335,11 @@ function resetSubmitModal() {
   submitPreview.classList.add("hidden");
   submitLookupForm.classList.remove("hidden");
   submitLookupButton.disabled = false;
+  if (submitPreviewLastSeen) {
+    submitPreviewLastSeen.textContent = "";
+    submitPreviewLastSeen.classList.add("hidden");
+    submitPreviewLastSeen.classList.remove("nudge-warning");
+  }
   renderSavedEids();
 }
 
@@ -1296,6 +1408,7 @@ if (submitLookupForm) {
       submitPreviewPlayer.textContent = result.player;
       submitPreviewRank.textContent = formatRank(result.rank);
       submitPreviewScore.textContent = formatScore(result.score);
+      renderSubmitPreviewLastSeen(result.player);
 
       if (!saveEidCheckbox || saveEidCheckbox.checked) {
         addSavedEid(eid);
@@ -1379,6 +1492,7 @@ clearSearchButton.addEventListener("click", () => {
   playerSummary.classList.add("hidden");
   searchStatus.textContent = "";
   hideScoreChart();
+  lastSearchedPlayer = null;
   playerSearch.focus();
 });
 

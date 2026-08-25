@@ -32,6 +32,12 @@
        scrolling; CSS (.date-format-floater) handles auto-adjusting its
        size/position for smaller screens. -->
   <div id="date-format-floater" class="date-format-floater">
+    <div class="jump-buttons">
+      <button id="jump-top-button" type="button" title="Jump to top">⬆ Top</button>
+      <button id="jump-search-button" type="button" title="Jump to player search">🔍 Search</button>
+      <button id="jump-controls-button" type="button" title="Jump to snapshot date selection">📅 Date</button>
+      <button id="jump-leaderboard-button" type="button" title="Jump to snapshot leaderboard">🏆 Snapshot</button>
+    </div>
     <label for="date-format-select">Date format</label>
     <select id="date-format-select">
       <option value="dmy">DD/MM/YYYY</option>
@@ -61,7 +67,7 @@
   </div>
 
   <main class="container">
-    <section class="search-card">
+    <section id="search-card" class="search-card">
       <div class="lookup-columns">
         <div class="lookup-column search-column">
           <p class="eyebrow">Player lookup</p>
@@ -173,7 +179,7 @@
         </table>
       </div>
     </section>
-    <section class="controls-card">
+    <section id="controls-card" class="controls-card">
       <div class="date-control">
         <label for="date-select">Leaderboard date</label>
         <select id="date-select">
@@ -188,7 +194,7 @@
       </div>
     </section>
 
-    <section class="leaderboard-card">
+    <section id="leaderboard-card" class="leaderboard-card">
       <div class="leaderboard-heading">
         <div>
           <p class="eyebrow">Snapshot</p>
@@ -272,6 +278,8 @@
             <p class="summary-label">Score</p>
             <p id="submit-preview-score" class="summary-value"></p>
           </div>
+
+          <p id="submit-preview-last-seen" class="submit-preview-last-seen"></p>
 
           <div class="submit-preview-actions">
             <button id="submit-confirm-button" type="button">Confirm &amp; Submit</button>
