@@ -1322,7 +1322,7 @@ function renderSavedEids() {
   entries.forEach(([eid, entry]) => {
     const pill = document.createElement("span");
     pill.className = "saved-eid-pill";
-    if (submitEidInput && submitEidInput.value.trim() === eid) {
+    if (submitEidInput && submitEidInput.value.trim().toUpperCase() === eid) {
       pill.classList.add("active");
     }
 
@@ -1433,7 +1433,8 @@ if (submitLookupForm) {
   submitLookupForm.addEventListener("submit", async event => {
     event.preventDefault();
 
-    const eid = submitEidInput.value.trim();
+    const eid = submitEidInput.value.trim().toUpperCase();
+    submitEidInput.value = eid;
 
     if (!eid) {
       submitStatus.textContent = "Please enter your EggInc ID.";
@@ -1489,7 +1490,7 @@ if (submitLookupForm) {
 
 if (submitConfirmButton) {
   submitConfirmButton.addEventListener("click", async () => {
-    const eid = submitEidInput.value.trim();
+    const eid = submitEidInput.value.trim().toUpperCase();
 
     submitConfirmButton.disabled = true;
     submitCancelButton.disabled = true;
@@ -1823,9 +1824,6 @@ async function initialize() {
 
   try {
     await loadAllLeaderboards();
-
-    searchStatus.textContent =
-      "Enter a player name to search the archive.";
 
     updateChartToggleButtons();
 
