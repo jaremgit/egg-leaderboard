@@ -166,6 +166,10 @@ function getGapsStatus() {
 // Player alias mapping - resolves name changes
 let playerAliasMap = {};
 
+function aliasLookupKey(name) {
+  return String(name ?? "").trim().toLowerCase();
+}
+
 async function loadPlayerAliases() {
   try {
     const response = await fetch("data/player-aliases.json");
@@ -179,17 +183,28 @@ async function loadPlayerAliases() {
     playerAliasMap = {};
 
     for (const [canonicalName, aliasList] of Object.entries(aliases)) {
-      if (!canonicalName.startsWith("_")) {
-        // Store canonical name for each alias
-        if (Array.isArray(aliasList)) {
-          aliasList.forEach(alias => {
-            playerAliasMap[alias.toLowerCase()] = canonicalName;
-          });
-        }
+      if (canonicalName.startsWith("_")) {
+        continue;
       }
+
+      const canonical = String(canonicalName).trim();
+      const allKnownNames = new Set([canonical]);
+
+      if (Array.isArray(aliasList)) {
+        aliasList.forEach(alias => {
+          allKnownNames.add(String(alias).trim());
+        });
+      }
+
+      allKnownNames.forEach(name => {
+        const key = aliasLookupKey(name);
+        if (key) {
+          playerAliasMap[key] = canonical;
+        }
+      });
     }
 
-    } catch (error) {
+  } catch (error) {
     console.error("Failed to load player aliases:", error);
   }
 }
@@ -197,8 +212,9 @@ async function loadPlayerAliases() {
 // Resolve a player name to its canonical form using the alias map
 function resolvePlayerName(playerName) {
   if (playerName === null || playerName === undefined) return playerName;
-  const lowerName = playerName.toLowerCase();
-  return playerAliasMap[lowerName] || playerName;
+  const original = String(playerName).trim();
+  const key = aliasLookupKey(original);
+  return playerAliasMap[key] || original;
 }
 
 // Normalize player name for display (converts aliases to canonical names)
