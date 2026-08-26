@@ -462,13 +462,21 @@ async function loadAllLeaderboards() {
       const response = await fetch(`data/${date}.json`);
 
       if (!response.ok) {
+        if (response.status === 404) {
+          return {
+            date,
+            entries: []
+          };
+        }
+
         throw new Error(`Could not load leaderboard for ${date}`);
       }
 
       const leaderboard = await response.json();
+      const sourceEntries = Array.isArray(leaderboard.entries) ? leaderboard.entries : [];
 
       // Normalize player names to canonical form when loading
-      const normalizedEntries = leaderboard.entries.map(entry => ({
+      const normalizedEntries = sourceEntries.map(entry => ({
         ...entry,
         player: normalizePlayerName(entry.player)
       }));
@@ -1519,6 +1527,15 @@ if (submitConfirmButton) {
         `Success! Added ${result.player} - rank ${result.rank}, score ${result.score}.`;
       submitStatus.className = "status success";
       submitPreview.classList.add("hidden");
+
+      try {
+        await refreshArchiveData();
+        if (playerSearch.value.trim()) {
+          searchPlayers();
+        }
+      } catch {
+        // Non-fatal: the submission already succeeded, so keep the success state.
+      }
     } catch (error) {
       submitStatus.textContent = error.message;
       submitStatus.className = "status error";
@@ -1832,6 +1849,15 @@ async function initialize() {
     }
   } catch (error) {
     searchStatus.textContent = error.message;
+  }
+}
+
+async function refreshArchiveData() {
+  await loadDates();
+  await loadAllLeaderboards();
+  updateChartToggleButtons();
+  if (typeof buildHeatmapDataMap === 'function') {
+    buildHeatmapDataMap();
   }
 }
 
