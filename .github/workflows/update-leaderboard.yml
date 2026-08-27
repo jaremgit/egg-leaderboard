@@ -2,9 +2,9 @@ name: Update Leaderboard Data
 
 on:
   schedule:
-    # Run every Monday at 7:00 AM Los Angeles time (2 PM UTC during PDT, 3 PM UTC during PST)
+    # Run every Monday and Friday at 7:00 AM Los Angeles time (2 PM UTC during PDT, 3 PM UTC during PST)
     # Using 2 PM UTC for best year-round coverage
-    - cron: '0 14 * * 1'
+    - cron: '0 14 * * 1,5'
   # Allow manual trigger
   workflow_dispatch:
 
