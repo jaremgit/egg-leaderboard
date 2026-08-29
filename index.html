@@ -32,6 +32,36 @@
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
+  <!-- "Heads up" disclaimer shown once per visitor (until dismissed with
+       "Don't show again"), explaining this is an AI-assisted hobby project.
+       Reuses the .modal/.modal-content pattern used elsewhere on the page. -->
+  <div id="disclaimer-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content disclaimer-modal-content">
+      <div class="modal-header">
+        <h2>👋 Before you dive in</h2>
+        <button id="close-disclaimer-modal" class="modal-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>
+          This site is a hobby project, mostly "vibe coded" with AI assistance.
+          It's unofficial, unaffiliated with Egg, Inc., and provided as-is with
+          no guarantees of accuracy or uptime.
+        </p>
+        <p>
+          Leaderboard data comes from a third-party community API, and player
+          submissions are looked up and published automatically - see the
+          <a href="https://github.com/jaremgit/egg-leaderboard#readme" target="_blank" rel="noopener">README</a>
+          for the full rundown of how it works and what data is stored.
+        </p>
+        <div class="disclaimer-modal-actions">
+          <button id="disclaimer-dont-show-again" type="button" class="secondary">Don't show again</button>
+          <button id="disclaimer-close-button" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Floating date-format toggle. Fixed position so it stays put while
        scrolling; CSS (.date-format-floater) handles auto-adjusting its
        size/position for smaller screens. -->

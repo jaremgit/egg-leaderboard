@@ -75,6 +75,11 @@ const rankScaleZoomSelect =
 const dataFilterSelect =
   document.getElementById("data-filter-select");
 
+const disclaimerModal = document.getElementById("disclaimer-modal");
+const closeDisclaimerModalButton = document.getElementById("close-disclaimer-modal");
+const disclaimerCloseButton = document.getElementById("disclaimer-close-button");
+const disclaimerDontShowAgainButton = document.getElementById("disclaimer-dont-show-again");
+
 const submitScoreButton = document.getElementById("submit-score-button");
 const submitModal = document.getElementById("submit-modal");
 const closeSubmitModalButton = document.getElementById("close-submit-modal");
@@ -1420,6 +1425,49 @@ function resetSubmitModal() {
   }
   renderSavedEids();
 }
+
+/* -------------------------------------------------------------------------
+   "Before you dive in" disclaimer modal - shown once per visitor on page
+   load to explain this is an AI-assisted hobby project, unless they've
+   previously clicked "Don't show again" (remembered via localStorage).
+   ------------------------------------------------------------------------- */
+const DISCLAIMER_DISMISSED_KEY = "disclaimerDismissed";
+
+function closeDisclaimerModal() {
+  if (!disclaimerModal) return;
+  disclaimerModal.classList.add("hidden");
+}
+
+function maybeShowDisclaimerModal() {
+  if (!disclaimerModal) return;
+  if (localStorage.getItem(DISCLAIMER_DISMISSED_KEY) === "true") return;
+  disclaimerModal.classList.remove("hidden");
+}
+
+if (closeDisclaimerModalButton) {
+  closeDisclaimerModalButton.addEventListener("click", closeDisclaimerModal);
+}
+
+if (disclaimerCloseButton) {
+  disclaimerCloseButton.addEventListener("click", closeDisclaimerModal);
+}
+
+if (disclaimerDontShowAgainButton) {
+  disclaimerDontShowAgainButton.addEventListener("click", () => {
+    localStorage.setItem(DISCLAIMER_DISMISSED_KEY, "true");
+    closeDisclaimerModal();
+  });
+}
+
+if (disclaimerModal) {
+  disclaimerModal.addEventListener("click", event => {
+    if (event.target.classList.contains("modal-backdrop")) {
+      closeDisclaimerModal();
+    }
+  });
+}
+
+maybeShowDisclaimerModal();
 
 function openSubmitModal() {
   if (!submitModal) return;
