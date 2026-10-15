@@ -256,9 +256,9 @@ async function lookupPlayerEntry(eid, env) {
 
   const leaderboardData = await leaderboardResponse.json();
 
-  if (leaderboardData && leaderboardData.error) {
+  if (!leaderboardResponse.ok) {
     throw new Error(
-      "That EggInc ID couldn't be looked up. Double check it and try again."
+      `Egg, Inc. leaderboard service returned HTTP ${leaderboardResponse.status}. Please try again later.`
     );
   }
 
