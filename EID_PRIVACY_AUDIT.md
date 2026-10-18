@@ -27,20 +27,26 @@ limiting), which cannot be reversed back into the original EID.
   leaves the browser except in the two `fetch()` calls described in 1.2/1.3.
 
 ### 1.2 "Look up" (preview) request
-- **Where:** `app.js` ~lines 1456-1513, `fetch(SUBMIT_WORKER_URL, ... action: "preview")`.
-- **What happens:** Sends `{ eid, action: "preview" }` over HTTPS to the
-  Cloudflare Worker (`SUBMIT_WORKER_URL`, defined at ~line 244). The Worker
-  responds with only `{ player, rank, score, alreadySubmittedToday }` — no
-  EID is echoed back. **Nothing is published yet** at this stage.
+- **Where:** `app.js` ~lines 1520-1570, direct calls to `ei_worker` API in the browser (~lines 1537-1559), then `fetch(SUBMIT_WORKER_URL, ... action: "preview")` (~lines 1561-1580).
+- **What happens:** 
+  1. First, the **browser directly calls** `https://ei_worker.tylertms.workers.dev/leaderboard?eid=...` and `/player_summary?eid=...` to fetch the player's public rank/score/name. The EID is sent directly from the browser to ei_worker (not via this project's servers).
+  2. Then, only the **results** (`{ player, rank, score }`) are sent over HTTPS to the Cloudflare Worker (`SUBMIT_WORKER_URL`, defined at ~line 251) with `action: "preview"`. The Worker responds with `{ player, rank, score, alreadySubmittedToday }` — no EID is echoed back. 
+  3. **Nothing is published yet** at this stage.
+  4. The results are cached locally in the browser (see 1.5 below) for the confirm step.
+- **Privacy benefit:** Since the ei_worker lookup happens directly from the browser, the EID never touches this project's Cloudflare Worker at the lookup stage — only at the confirm stage below.
 
 ### 1.3 "Confirm & Submit" request
-- **Where:** `app.js` ~lines 1515-1563, `fetch(SUBMIT_WORKER_URL, ... action: "confirm")`.
-- **What happens:** Sends `{ eid, action: "confirm" }` to the same Worker.
-  This time the Worker actually commits the looked-up `{ player, rank, score }`
-  to the public leaderboard data (see §2). The response back to the browser
-  again contains only `{ player, rank, score }` — never the EID.
+- **Where:** `app.js` ~lines 1617-1640, `fetch(SUBMIT_WORKER_URL, ... action: "confirm")`.
+- **What happens:** Sends `{ eid, action: "confirm", player, rank, score }` to the same Worker.
+  The Worker receives the **pre-fetched player data** from the lookup phase (not calling ei_worker again) and commits the public fields (`{ player, rank, score }`) to the public leaderboard data (see §2). The response back to the browser contains only `{ player, rank, score }` — never the EID.
+- **Privacy benefit:** The EID is sent to the Worker here, but the Worker doesn't need to call ei_worker to look it up again — the lookup already happened in the browser, so there's no redundant ei_worker call.
 
-### 1.4 "Saved EggInc IDs" (local-only convenience feature)
+### 1.4 Cached player data (browser-side only)
+- **Where:** `app.js` ~line 252 (`let cachedSubmitData = null`), and lines 1574-1578 where it's set after successful lookup.
+- **What happens:** After a successful "Look up" request, the browser stores the results (`{ player, rank, score }`) in a variable (`cachedSubmitData`) so they can be resent with the "Confirm" request without re-doing the lookup. This data is **never sent anywhere except to the Worker in the next confirm request** — it stays in browser memory only.
+- **Privacy benefit:** Avoids calling ei_worker twice for the same lookup.
+
+### 1.5 "Saved EggInc IDs" (local-only convenience feature)
 - **Where:** `app.js` ~lines 1267-1392.
   - `SAVED_EIDS_STORAGE_KEY = "savedEids"` — the `localStorage` key used.
   - `getSavedEids()` / `setSavedEids()` — read/write the saved-ID object
@@ -94,22 +100,10 @@ visitor.
   were somehow exposed. **The raw EID is never written to this or any other
   KV namespace.**
 
-### 2.3 Lookup against the public `ei_worker` API
-- **Where:** `lookupPlayerEntry(eid, env)` (~lines 241-307).
-- **What happens:** Makes two outbound GET requests to
-  `https://ei_worker.tylertms.workers.dev` — `/leaderboard?eid=...` (for
-  rank/score) and `/player_summary?eid=...` (for display name) — passing the
-  EID as a query parameter to that **third-party** service (not one this
-  project controls). This is the same third-party API used by the site's
-  own weekly archive pull (§3) and by tools like wasmegg/carpet. The EID
-  local variable is discarded once this function returns; it is not
-  referenced again anywhere later in the request (explicitly called out in a
-  comment at line ~171 in `index.js`).
-- **Third-party trust note:** since this lookup is delegated to
-  `ei_worker.tylertms.workers.dev`, that service technically does see the
-  raw EID for the duration of its own request handling. This project has no
-  control over that service's logging/retention; it is the same dependency
-  already disclosed in `README.md`'s "third-party dependency" section.
+### 2.3 Lookup against the public `ei_worker` API (browser-based)
+- **Where:** `app.js` ~lines 1537-1559, called directly from the browser during the lookup phase (not by the Worker).
+- **What happens:** The browser directly makes two outbound GET requests to `https://ei_worker.tylertms.workers.dev` — `/leaderboard?eid=...` (for rank/score) and `/player_summary?eid=...` (for display name) — passing the EID as a query parameter to that **third-party** service (not one this project controls). This is the same third-party API used by the site's own weekly archive pull (§3) and by tools like wasmegg/carpet. The results are cached locally in the browser and sent with the confirm request (§1.3).
+- **Third-party trust note:** since this lookup is delegated to `ei_worker.tylertms.workers.dev`, that service does see the raw EID for the duration of its own request handling. This project has no control over that service's logging/retention; it is the same dependency already disclosed in `README.md`'s "third-party dependency" section. However, unlike the old flow, **the EID does not pass through this project's Cloudflare Worker** — it goes directly from the browser to ei_worker.
 
 ### 2.4 Publishing (`confirm` only)
 - **Where:** `commitEntryToGitHub(entry, env)` (~line 312) and
@@ -167,9 +161,10 @@ visitor.
 |---|---|---|---|
 | `submit-eid` input (browser) | Yes (visitor's own input) | Nowhere until submit | No |
 | `localStorage["savedEids"]` | Yes (as object key + `title` tooltip) | Nowhere — local only | Yes, but only in that visitor's own browser |
-| POST `/submit` body (preview/confirm) | Yes | Cloudflare Worker (HTTPS) | No — held in memory for one request only |
+| Browser ei_worker lookup (~1.2a) | Yes | Third-party `ei_worker.tylertms.workers.dev` (direct from browser, NOT via this project's Worker) | Not by this project; that service's own logging is outside this repo's control |
+| `cachedSubmitData` (browser memory) | Yes (locally cached results) | Nowhere — local browser memory only, then in next POST to Worker | No — ephemeral, cleared on modal close |
+| POST `/submit` with `action: "confirm"` (~1.3) | Yes + cached player data | Cloudflare Worker (HTTPS) | No — held in memory for one request only |
 | `RATE_LIMIT_KV` | No — only a salted SHA-256 hash | N/A | Yes (hash only, auto-expires with normal KV TTL behavior for the rate-limit key) |
-| `ei_worker` lookup (`/leaderboard`, `/player_summary`) | Yes | Third-party `ei_worker.tylertms.workers.dev` | Not by this project; that service's own logging is outside this repo's control |
 | `PENDING_SUBMISSIONS_KV` | No | N/A | Yes, but only `{ rank, player, score, source }` (public fields), 9-day TTL |
 | GitHub commit (`data/<date>.json`) | No | N/A | Yes, but only `{ rank, player, score, source }` (public fields) |
 | GitHub Actions logs | No (maintainer's own EID is a redacted secret, unrelated to visitors) | N/A | No |
