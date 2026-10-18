@@ -926,6 +926,7 @@ function renderScoreChart(playerName, matches) {
   let filteredMatches = filterMatchesByMode(matches, dataFilterMode);
 
   // Apply time range zoom filter
+  let showZoomFallbackMessage = false;
   if (timeRangeZoom !== "all" && filteredMatches.length > 0) {
     const now = new Date();
     let cutoffDate = new Date();
@@ -944,6 +945,17 @@ function renderScoreChart(playerName, matches) {
       const matchDate = new Date(match.date);
       return matchDate >= cutoffDate;
     });
+
+    // If the zoom filtered out too much data, fall back to "all" with a message
+    if (filteredMatches.length < 2) {
+      showZoomFallbackMessage = true;
+      timeRangeZoom = "all";
+      if (timeRangeZoomSelect) {
+        timeRangeZoomSelect.value = "all";
+      }
+      // Re-apply with no time filter
+      filteredMatches = filterMatchesByMode(matches, dataFilterMode);
+    }
   }
 
   if (filteredMatches.length < 2) {
@@ -1062,13 +1074,34 @@ function renderScoreChart(playerName, matches) {
         ctx.stroke();
       });
 
-      // Draw month labels at the bottom
+      // Draw month labels at the bottom with responsive density
       ctx.font = "11px sans-serif";
       ctx.fillStyle = "rgba(142, 157, 178, 0.7)";
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
 
-      monthlyLines.forEach(monthDate => {
+      // Determine label density based on plot width
+      // Estimate: ~40px needed per label (adjustable)
+      const pixelsPerLabel = 40;
+      const availableLabels = Math.floor(plotWidth / pixelsPerLabel);
+      let labelInterval = 1; // show every N months
+
+      if (availableLabels < 6) {
+        // Super narrow: only Jan and July
+        labelInterval = 6; // every 6 months, starting at Jan
+      } else if (availableLabels < 8) {
+        // Very narrow: every 4th month (Jan, May, Sep)
+        labelInterval = 4;
+      } else if (availableLabels < 12) {
+        // Narrow: every 2nd month (Jan, Mar, May, Jul, Sep, Nov)
+        labelInterval = 2;
+      }
+      // else: show all months (labelInterval = 1)
+
+      monthlyLines.forEach((monthDate, index) => {
+        // Only render labels at the appropriate interval
+        if (index % labelInterval !== 0) return;
+
         const x = getPixelForDate(monthDate);
         const monthLabel = monthDate.toLocaleDateString("en-US", { month: "short" });
         ctx.fillText(monthLabel, x, yScale.bottom + 8);
@@ -1212,6 +1245,16 @@ function renderScoreChart(playerName, matches) {
   });
 
   scoreChartContainer.classList.remove("hidden");
+
+  // Show fallback message if we auto-recovered from insufficient zoom data
+  if (chartStatus) {
+    if (showZoomFallbackMessage) {
+      chartStatus.textContent =
+        "Not enough data in that range. Showing all available data.";
+    } else {
+      chartStatus.textContent = "";
+    }
+  }
 
   if (chartTitle) {
     chartTitle.textContent = isScoreMode
