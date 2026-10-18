@@ -78,10 +78,15 @@ export default {
 
     let eid;
     let action;
+    let prefetchedPlayer, prefetchedRank, prefetchedScore;
     try {
       const body = await request.json();
       eid = typeof body.eid === "string" ? body.eid.trim() : "";
       action = body.action === "confirm" ? "confirm" : "preview";
+      // Extract pre-fetched data if provided by the frontend
+      prefetchedPlayer = body.player;
+      prefetchedRank = body.rank;
+      prefetchedScore = body.score;
     } catch {
       return withCors(jsonError("Request body must be JSON.", 400));
     }
@@ -110,7 +115,7 @@ export default {
 
       let entry;
       try {
-        entry = await lookupPlayerEntry(eid, env);
+        entry = await lookupPlayerEntry(eid, env, prefetchedPlayer ? { player: prefetchedPlayer, rank: prefetchedRank, score: prefetchedScore } : null);
       } catch (error) {
         return withCors(jsonError(error.message, 502));
       }
@@ -147,7 +152,7 @@ export default {
     // ---- Look up the player's ALL_TIME / AAA entry via ei_worker ---------
     let entry;
     try {
-      entry = await lookupPlayerEntry(eid, env);
+      entry = await lookupPlayerEntry(eid, env, prefetchedPlayer ? { player: prefetchedPlayer, rank: prefetchedRank, score: prefetchedScore } : null);
     } catch (error) {
       return withCors(jsonError(error.message, 502));
     }
@@ -238,7 +243,21 @@ async function hashEid(eid, salt) {
 // entry - we never fall back to guessing from topEntriesList (e.g. "just
 // use the first entry"), since that would silently attribute someone else's
 // score to the wrong account.
-async function lookupPlayerEntry(eid, env) {
+async function lookupPlayerEntry(eid, env, prefetchedData = null) {
+  // If pre-fetched data is provided by the frontend, use it directly
+  if (prefetchedData) {
+    const { player, rank, score } = prefetchedData;
+    if (!player || !rank || !score) {
+      throw new Error("Invalid pre-fetched data.");
+    }
+    return {
+      player: String(player),
+      rank: String(rank),
+      score: String(score)
+    };
+  }
+
+  // Otherwise, fetch from ei_worker (fallback for backward compatibility)
   const base = env.EI_WORKER_BASE || "https://ei_worker.tylertms.workers.dev";
   const scope = env.EI_SCOPE || "ALL_TIME";
   const grade = env.EI_GRADE || "5";
@@ -247,9 +266,11 @@ async function lookupPlayerEntry(eid, env) {
   let leaderboardResponse;
   try {
     leaderboardResponse = await fetch(
-      `${base}/leaderboard?eid=${encodeURIComponent(eid)}&scope=${scope}&grade=${grade}`
+      `${base}/leaderboard?eid=${encodeURIComponent(eid)}&scope=${scope}&grade=${grade}`,
+      { cf: { cacheTtl: 0, mirage: false } }
     );
   } catch (fetchError) {
+    console.error('Fetch error:', fetchError);
     throw new Error(
       `Network error reaching leaderboard service at ${base}: ${fetchError.message}`
     );
@@ -257,6 +278,7 @@ async function lookupPlayerEntry(eid, env) {
 
   if (!leaderboardResponse.ok) {
     const errorBody = await leaderboardResponse.text().catch(() => '');
+    console.error(`Leaderboard response status: ${leaderboardResponse.status}, body: ${errorBody}`);
     throw new Error(
       `Couldn't reach the Egg, Inc. leaderboard service (HTTP ${leaderboardResponse.status}). Please try again later. Details: ${errorBody.substring(0, 100)}`
     );
@@ -284,7 +306,8 @@ async function lookupPlayerEntry(eid, env) {
   let summaryResponse;
   try {
     summaryResponse = await fetch(
-      `${base}/player_summary?eid=${encodeURIComponent(eid)}`
+      `${base}/player_summary?eid=${encodeURIComponent(eid)}`,
+      { cf: { cacheTtl: 0, mirage: false } }
     );
   } catch (fetchError) {
     throw new Error(

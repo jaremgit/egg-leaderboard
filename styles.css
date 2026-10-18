@@ -1103,6 +1103,26 @@ tbody tr:hover {
   background: rgba(77, 156, 255, 0.12);
 }
 
+.time-range-zoom {
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.time-range-zoom:hover {
+  background: rgba(77, 156, 255, 0.12);
+}
+
+.time-range-zoom:focus {
+  outline: none;
+  background: rgba(77, 156, 255, 0.12);
+}
+
 .data-filter-select {
   padding: 7px 11px;
   border: 0;

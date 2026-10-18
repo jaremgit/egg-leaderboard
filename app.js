@@ -72,6 +72,9 @@ const rankChartButton =
 const rankScaleZoomSelect =
   document.getElementById("rank-scale-zoom");
 
+const timeRangeZoomSelect =
+  document.getElementById("time-range-zoom");
+
 const dataFilterSelect =
   document.getElementById("data-filter-select");
 
@@ -239,6 +242,7 @@ let allLeaderboards = [];      // every leaderboard, preloaded for search
 let scoreChart = null;         // the active Chart.js instance (or null)
 let chartMode = "score";       // "score" or "rank" - which chart is shown
 let rankScaleZoom = "default"; // y-axis zoom preset for the rank chart
+let timeRangeZoom = "all";     // x-axis time zoom preset: "all", "1y", "6m", "3m", "1m"
 let dateEntryCountMap = {};    // date -> number of entries (used by heatmap)
 let dataFilterMode = "raw";    // "raw" | "weekly" | "weekly-peak" | "monthly" | "monthly-peak"
 
@@ -833,6 +837,11 @@ async function searchPlayers() {
        rankScaleZoomSelect.value = "default";
      }
 
+     timeRangeZoom = "all";
+     if (timeRangeZoomSelect) {
+       timeRangeZoomSelect.value = "all";
+     }
+
      renderScoreChart(focusedPlayer, matches);
   }
 
@@ -914,7 +923,28 @@ function renderScoreChart(playerName, matches) {
   }
 
   // Apply filter based on selected mode (raw / weekly / monthly, see section 7)
-  const filteredMatches = filterMatchesByMode(matches, dataFilterMode);
+  let filteredMatches = filterMatchesByMode(matches, dataFilterMode);
+
+  // Apply time range zoom filter
+  if (timeRangeZoom !== "all" && filteredMatches.length > 0) {
+    const now = new Date();
+    let cutoffDate = new Date();
+
+    if (timeRangeZoom === "1m") {
+      cutoffDate.setMonth(cutoffDate.getMonth() - 1);
+    } else if (timeRangeZoom === "3m") {
+      cutoffDate.setMonth(cutoffDate.getMonth() - 3);
+    } else if (timeRangeZoom === "6m") {
+      cutoffDate.setMonth(cutoffDate.getMonth() - 6);
+    } else if (timeRangeZoom === "1y") {
+      cutoffDate.setFullYear(cutoffDate.getFullYear() - 1);
+    }
+
+    filteredMatches = filteredMatches.filter(match => {
+      const matchDate = new Date(match.date);
+      return matchDate >= cutoffDate;
+    });
+  }
 
   if (filteredMatches.length < 2) {
     hideScoreChart();
@@ -928,6 +958,9 @@ function renderScoreChart(playerName, matches) {
   }
 
   const labels = filteredMatches.map(match => formatDate(match.date));
+
+  // Convert dates to Date objects for time-based x-axis
+  const dateObjects = filteredMatches.map(match => new Date(match.date));
 
   const scores = filteredMatches.map(match => {
     return Number(
@@ -977,6 +1010,104 @@ function renderScoreChart(playerName, matches) {
     stepSize = range.step;
   }
 
+  // Plugin to draw vertical lines and year labels at year boundaries
+  const yearBoundaryPlugin = {
+    id: "yearBoundaryLines",
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      const xScale = chart.scales.x;
+      const yScale = chart.scales.y;
+
+      if (!xScale || !yScale || dateObjects.length === 0) return;
+
+      // Get the actual data date range
+      const minDate = new Date(Math.min(...dateObjects.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...dateObjects.map(d => d.getTime())));
+      const dateRange = maxDate.getTime() - minDate.getTime();
+      const plotWidth = xScale.right - xScale.left;
+
+      // Helper: convert a date to pixel position using linear interpolation
+      const getPixelForDate = (date) => {
+        const elapsed = date.getTime() - minDate.getTime();
+        const fraction = elapsed / dateRange;
+        return xScale.left + (fraction * plotWidth);
+      };
+
+      // Find all year boundaries
+      const yearBoundaries = new Map();
+      dateObjects.forEach(date => {
+        const year = date.getFullYear();
+        const yearStart = new Date(year, 0, 1);
+        if (!yearBoundaries.has(year)) {
+          yearBoundaries.set(year, yearStart);
+        }
+      });
+
+      // Generate all monthly gridlines and labels
+      const monthlyLines = [];
+      for (let d = new Date(minDate.getFullYear(), minDate.getMonth(), 1); d <= maxDate; d.setMonth(d.getMonth() + 1)) {
+        monthlyLines.push(new Date(d));
+      }
+
+      ctx.save();
+
+      // Draw monthly gridlines (lighter)
+      ctx.strokeStyle = "rgba(142, 157, 178, 0.1)";
+      ctx.lineWidth = 1;
+      monthlyLines.forEach(monthDate => {
+        const x = getPixelForDate(monthDate);
+        ctx.beginPath();
+        ctx.moveTo(x, yScale.top);
+        ctx.lineTo(x, yScale.bottom);
+        ctx.stroke();
+      });
+
+      // Draw month labels at the bottom
+      ctx.font = "11px sans-serif";
+      ctx.fillStyle = "rgba(142, 157, 178, 0.7)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      monthlyLines.forEach(monthDate => {
+        const x = getPixelForDate(monthDate);
+        const monthLabel = monthDate.toLocaleDateString("en-US", { month: "short" });
+        ctx.fillText(monthLabel, x, yScale.bottom + 8);
+      });
+
+      // Draw year boundary lines (darker) and labels
+      ctx.strokeStyle = "rgba(142, 157, 178, 0.3)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.font = "12px sans-serif";
+      ctx.fillStyle = "rgba(142, 157, 178, 0.6)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      const years = Array.from(yearBoundaries.keys()).sort();
+
+      years.forEach((year, index) => {
+        if (index === 0) return; // Skip the first year
+
+        const yearStartDate = yearBoundaries.get(year);
+        const x = getPixelForDate(yearStartDate);
+
+        if (x >= xScale.left && x <= xScale.right) {
+          // Draw vertical line
+          ctx.beginPath();
+          ctx.moveTo(x, yScale.top);
+          ctx.lineTo(x, yScale.bottom);
+          ctx.stroke();
+
+          // Draw year label inside the chart
+          const labelY = yScale.top + 5;
+          ctx.fillText(String(year), x, labelY);
+        }
+      });
+
+      ctx.restore();
+    }
+  };
+
   if (scoreChart) {
     scoreChart.destroy();
   }
@@ -984,7 +1115,7 @@ function renderScoreChart(playerName, matches) {
   scoreChart = new Chart(scoreChartCanvas, {
     type: "line",
     data: {
-      labels,
+      labels: dateObjects,
       datasets: [
         {
           label: isScoreMode
@@ -1004,9 +1135,15 @@ function renderScoreChart(playerName, matches) {
         }
       ]
     },
+    plugins: [yearBoundaryPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          bottom: 25
+        }
+      },
       interaction: {
         intersect: false,
         mode: "index"
@@ -1033,11 +1170,19 @@ function renderScoreChart(playerName, matches) {
       },
       scales: {
         x: {
+          type: "time",
+          time: {
+            unit: "month",
+            displayFormats: {
+              month: "MMM"
+            },
+            tooltipFormat: "MMM d, yyyy"
+          },
           ticks: {
-            color: "#8e9db2"
+            display: false
           },
           grid: {
-            color: "rgba(142, 157, 178, 0.14)"
+            display: false
           }
         },
         y: {
@@ -1184,6 +1329,13 @@ rankScaleZoomSelect.addEventListener("change", (event) => {
   rankScaleZoom = event.target.value;
   refreshFocusedChart();
 });
+
+if (timeRangeZoomSelect) {
+  timeRangeZoomSelect.addEventListener("change", (event) => {
+    timeRangeZoom = event.target.value;
+    refreshFocusedChart();
+  });
+}
 
 /* -------------------------------------------------------------------------
    10. EVENT LISTENERS
@@ -2380,6 +2532,3 @@ if (gapsModalElement) {
 
 // Kick everything off once this file loads.
 initialize();
-
-
-// Cache bust: redeploy trigger

@@ -177,6 +177,17 @@
             </select>
 
             <select
+              id="time-range-zoom"
+              class="time-range-zoom"
+            >
+              <option value="all">All Time</option>
+              <option value="1y">Last 1 Year</option>
+              <option value="6m">Last 6 Months</option>
+              <option value="3m">Last 3 Months</option>
+              <option value="1m">Last 1 Month</option>
+            </select>
+
+            <select
               id="data-filter-select"
               class="data-filter-select"
             >
@@ -375,6 +386,7 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
   <script src="app.js"></script>
 </body>
 
