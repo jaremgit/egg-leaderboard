@@ -1,12 +1,18 @@
 {
   "date": "2026-10-18",
   "complete": false,
-  "observed_entries": 1,
+  "observed_entries": 2,
   "entries": [
     {
       "rank": "4745",
       "player": "j4arem",
       "score": "13841043",
+      "source": "submission"
+    },
+    {
+      "rank": "575",
+      "player": "j3arem",
+      "score": "25516623",
       "source": "submission"
     }
   ]
