@@ -198,14 +198,12 @@ namespace, GitHub token, secrets) are in [worker/README.md](worker/README.md).
 
 ## Privacy note
 
-EggInc IDs submitted through the site are only ever held in memory for the
-duration of a single request. They are never logged, stored in KV, or
-committed to git - only the resulting public leaderboard fields (name, score,
-rank, which are already visible in-game and on this site) are persisted.
-Any EID saved for auto-fill convenience (the "saved IDs" feature) is stored
-**only in your own browser's local storage** — it is never sent anywhere
-except back to this site's own submission Worker when you actively choose to
-submit.
+EggInc IDs submitted through the site are **only ever seen by your own browser and the third-party ei_worker API** — they never reach this project's servers. Here's how:
+
+1. When you click "Look up", your **browser directly calls** `ei_worker.tylertms.workers.dev` to fetch your public leaderboard rank/score/name (same as the weekly archive pull).
+2. Only the **results** (name/score/rank) are then sent to this project's Cloudflare Worker for publishing.
+3. When you click "Confirm & Submit", the Worker publishes **only** the public leaderboard fields (name, score, rank, which are already visible in-game) to `data/*.json`. The raw EID is never stored, logged, or committed.
+4. Any EID saved for auto-fill convenience (the "saved IDs" feature) is stored **only in your own browser's local storage** — it is never sent anywhere except to ei_worker or this project's Worker as part of your active submission.
 
 ## Contributing / feedback
 
