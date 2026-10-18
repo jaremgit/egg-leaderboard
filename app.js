@@ -248,6 +248,9 @@ let dataFilterMode = "raw";    // "raw" | "weekly" | "weekly-peak" | "monthly" |
 // deployed the Worker yet - the submission form will just show an error.
 const SUBMIT_WORKER_URL = "https://egg-leaderboard-submit.jarem.workers.dev/submit";
 
+// Store pre-fetched player data from the lookup phase so we can use it in confirm
+let cachedSubmitData = null;
+
 // Same Worker, but the read-only endpoint that returns today's (or another
 // date's) submissions that have been confirmed but not yet folded into the
 // permanent data/<date>.json file by the weekly GitHub Action / rebuilt by
@@ -1479,6 +1482,8 @@ function openSubmitModal() {
 function closeSubmitModal() {
   if (!submitModal) return;
   submitModal.classList.add("hidden");
+  // Clear cached data when closing
+  cachedSubmitData = null;
 }
 
 if (submitScoreButton) {
@@ -1570,6 +1575,13 @@ if (submitLookupForm) {
         throw new Error(result.error || "Something went wrong. Please try again.");
       }
 
+      // Save the prefetched data for the confirm action
+      cachedSubmitData = {
+        player: playerName,
+        rank: String(eiWorkerData.rank),
+        score: String(eiWorkerData.score)
+      };
+
       submitPreviewPlayer.textContent = result.player;
       submitPreviewRank.textContent = formatRank(result.rank);
       submitPreviewScore.textContent = formatScore(result.score);
@@ -1608,10 +1620,17 @@ if (submitConfirmButton) {
     submitStatus.className = "status";
 
     try {
+      // Send the cached pre-fetched data along with the confirm action
       const response = await fetch(SUBMIT_WORKER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eid, action: "confirm" })
+        body: JSON.stringify({
+          eid,
+          action: "confirm",
+          player: cachedSubmitData?.player,
+          rank: cachedSubmitData?.rank,
+          score: cachedSubmitData?.score
+        })
       });
 
       const result = await response.json();
