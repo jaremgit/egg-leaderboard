@@ -1520,10 +1520,48 @@ if (submitLookupForm) {
     submitPreview.classList.add("hidden");
 
     try {
+      // STEP 1: Fetch player data from ei_worker directly in the browser
+      const eiWorkerResponse = await fetch(
+        `https://ei_worker.tylertms.workers.dev/leaderboard?eid=${encodeURIComponent(eid)}&scope=ALL_TIME&grade=5`
+      );
+
+      if (!eiWorkerResponse.ok) {
+        throw new Error("Failed to look up your ranking. Please try again.");
+      }
+
+      const eiWorkerData = await eiWorkerResponse.json();
+
+      if (!eiWorkerData.rank || !eiWorkerData.score) {
+        throw new Error("You're not currently ranked on the leaderboard.");
+      }
+
+      // STEP 2: Also get player name from player_summary
+      const playerSummaryResponse = await fetch(
+        `https://ei_worker.tylertms.workers.dev/player_summary?eid=${encodeURIComponent(eid)}`
+      );
+
+      if (!playerSummaryResponse.ok) {
+        throw new Error("Failed to get your player name. Please try again.");
+      }
+
+      const playerSummaryData = await playerSummaryResponse.json();
+      const playerName = playerSummaryData.user_name;
+
+      if (!playerName) {
+        throw new Error("Could not determine your player name.");
+      }
+
+      // STEP 3: Send the pre-fetched data to your worker
       const response = await fetch(SUBMIT_WORKER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eid, action: "preview" })
+        body: JSON.stringify({
+          eid: eid,
+          action: "preview",
+          player: playerName,
+          rank: String(eiWorkerData.rank),
+          score: String(eiWorkerData.score)
+        })
       });
 
       const result = await response.json();
