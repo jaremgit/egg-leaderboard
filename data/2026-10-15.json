@@ -1,7 +1,7 @@
 {
   "date": "2026-10-15",
   "complete": false,
-  "observed_entries": 100,
+  "observed_entries": 101,
   "entries": [
     {
       "rank": "1",
@@ -602,7 +602,7 @@
       "player": "ejordanw",
       "score": "29313538",
       "source": "ei_worker"
-    }
+    },
         {
       "rank": "307",
       "player": "BobSkiMaj778",
