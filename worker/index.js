@@ -244,13 +244,21 @@ async function lookupPlayerEntry(eid, env) {
   const grade = env.EI_GRADE || "5";
 
   // 1. Get this player's own rank/score directly from /leaderboard.
-  const leaderboardResponse = await fetch(
-    `${base}/leaderboard?eid=${encodeURIComponent(eid)}&scope=${scope}&grade=${grade}`
-  );
+  let leaderboardResponse;
+  try {
+    leaderboardResponse = await fetch(
+      `${base}/leaderboard?eid=${encodeURIComponent(eid)}&scope=${scope}&grade=${grade}`
+    );
+  } catch (fetchError) {
+    throw new Error(
+      `Network error reaching leaderboard service at ${base}: ${fetchError.message}`
+    );
+  }
 
   if (!leaderboardResponse.ok) {
+    const errorBody = await leaderboardResponse.text().catch(() => '');
     throw new Error(
-      "Couldn't reach the Egg, Inc. leaderboard service. Please try again later."
+      `Couldn't reach the Egg, Inc. leaderboard service (HTTP ${leaderboardResponse.status}). Please try again later. Details: ${errorBody.substring(0, 100)}`
     );
   }
 
@@ -273,13 +281,20 @@ async function lookupPlayerEntry(eid, env) {
 
   // 2. Get this player's display name via /player_summary (the leaderboard
   //    response itself doesn't include the requester's own name).
-  const summaryResponse = await fetch(
-    `${base}/player_summary?eid=${encodeURIComponent(eid)}`
-  );
+  let summaryResponse;
+  try {
+    summaryResponse = await fetch(
+      `${base}/player_summary?eid=${encodeURIComponent(eid)}`
+    );
+  } catch (fetchError) {
+    throw new Error(
+      `Network error reaching player summary service at ${base}: ${fetchError.message}`
+    );
+  }
 
   if (!summaryResponse.ok) {
     throw new Error(
-      "Couldn't reach the Egg, Inc. player service. Please try again later."
+      `Couldn't reach the Egg, Inc. player service (HTTP ${summaryResponse.status}). Please try again later.`
     );
   }
 
