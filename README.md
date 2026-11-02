@@ -1,4 +1,4 @@
-# Egg, Inc. ALL_TIME Leaderboard Archive
+# Egg, Inc. ALL_TIME Leaderboard Archive Experimental
 
 **This is a vibe-coded hobby project.** I am not a professional developer — I
 built this with heavy help from AI coding assistants, by describing what I
