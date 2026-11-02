@@ -774,24 +774,28 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
 }
 
 function renderSeasonalRankChart(playerName, matches) {
-  const chartMatches = matches
-    .map(match => ({ ...match, rank: Number(match.rank) }))
-    .filter(match => Number.isFinite(match.rank));
+  const seasons = seasonalLeaderboards.map(season => ({
+    ...season,
+    rank: Number(matches.find(match => match.scope === season.scope)?.rank)
+  }));
+  const rankedSeasons = seasons.filter(season => Number.isFinite(season.rank));
 
-  if (chartMatches.length < 2 || !seasonalRankChartCanvas) {
+  if (rankedSeasons.length < 2 || !seasonalRankChartCanvas) {
     return;
   }
 
   seasonalRankChart = new Chart(seasonalRankChartCanvas, {
     type: "line",
     data: {
-      labels: chartMatches.map(match => match.seasonName),
+      labels: seasons.map(season => season.name),
       datasets: [{
         label: `${playerName} seasonal rank`,
-        data: chartMatches.map(match => match.rank),
+        data: seasons.map(season => Number.isFinite(season.rank) ? season.rank : null),
         borderColor: "#4d9cff",
         backgroundColor: "rgba(77, 156, 255, 0.16)",
-        pointBackgroundColor: chartMatches.map(match => getRankColor(match.rank)),
+        pointBackgroundColor: seasons.map(season =>
+          Number.isFinite(season.rank) ? getRankColor(season.rank) : "transparent"
+        ),
         pointBorderColor: "#fff",
         pointBorderWidth: 2,
         pointRadius: 5,
@@ -815,8 +819,9 @@ function renderSeasonalRankChart(playerName, matches) {
         tooltip: {
           callbacks: {
             label: context => {
-              const match = chartMatches[context.dataIndex];
-              return `Rank: ${formatRank(match.rank)} · Score: ${formatScore(match.score)}`;
+              const season = seasons[context.dataIndex];
+              const match = matches.find(item => item.scope === season.scope);
+              return `Rank: ${formatRank(season.rank)} · Score: ${formatScore(match.score)}`;
             }
           }
         }
