@@ -77,6 +77,14 @@ test("normalizeEntries returns a rank-sorted validated top list", () => {
     ]
   );
   assert.throws(() => normalizeEntries({ topEntriesList: [] }, "spring_2025"), /did not contain entries/);
+  assert.throws(
+    () => normalizeEntries({ topEntriesList: [{ rank: 1, score: 30, secretName: "Private Player" }] }, "spring_2025"),
+    error => {
+      assert.match(error.message, /entry 1 has invalid player name; available fields: rank, score, secretName/);
+      assert.doesNotMatch(error.message, /Private Player/);
+      return true;
+    }
+  );
 });
 
 test("archive writes one current snapshot per season and avoids unchanged rewrites", async () => {

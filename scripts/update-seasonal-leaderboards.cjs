@@ -57,13 +57,38 @@ function normalizeEntries(payload, scope) {
     throw new Error(`Leaderboard response for '${scope}' did not contain entries.`);
   }
 
-  const entries = payload.topEntriesList.map(entry => {
+  const entries = payload.topEntriesList.map((entry, index) => {
     const rank = Number(entry?.rank);
-    const player = String(entry?.alias || entry?.name || entry?.player_name || "").trim();
+    const player = [
+      entry?.alias,
+      entry?.name,
+      entry?.player_name,
+      entry?.playerName,
+      entry?.user_name,
+      entry?.userName,
+      entry?.username,
+      entry?.player
+    ].find(value => typeof value === "string" && value.trim())?.trim() || "";
     const score = entry?.score;
+    const invalidFields = [];
 
-    if (!Number.isInteger(rank) || rank < 1 || !player || score === undefined || score === null) {
-      throw new Error(`Leaderboard response for '${scope}' contained an invalid entry.`);
+    if (!Number.isInteger(rank) || rank < 1) {
+      invalidFields.push("rank");
+    }
+    if (!player) {
+      invalidFields.push("player name");
+    }
+    if (score === undefined || score === null || !["string", "number"].includes(typeof score)) {
+      invalidFields.push("score");
+    }
+
+    if (invalidFields.length > 0) {
+      const availableFields = entry && typeof entry === "object"
+        ? Object.keys(entry).sort().join(", ") || "none"
+        : `non-object (${typeof entry})`;
+      throw new Error(
+        `Leaderboard response for '${scope}' entry ${index + 1} has invalid ${invalidFields.join(", ")}; available fields: ${availableFields}.`
+      );
     }
 
     return {
