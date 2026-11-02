@@ -93,6 +93,8 @@ const seasonalPlayerSearch = document.getElementById("seasonal-player-search");
 const seasonalClearSearchButton = document.getElementById("seasonal-clear-search");
 const seasonalPlayerStatus = document.getElementById("seasonal-player-status");
 const seasonalPlayerSummary = document.getElementById("seasonal-player-summary");
+const seasonalRankChartContainer = document.getElementById("seasonal-rank-chart-container");
+const seasonalRankChartCanvas = document.getElementById("seasonal-rank-chart");
 const seasonalPlayerHistoryWrapper = document.getElementById("seasonal-player-history-wrapper");
 const seasonalPlayerHistoryBody = document.getElementById("seasonal-player-history-body");
 
@@ -258,6 +260,7 @@ let availableDates = [];       // every ISO date (YYYY-MM-DD) that has data
 let currentDateIndex = -1;     // index into availableDates for the shown date
 let allLeaderboards = [];      // every leaderboard, preloaded for search
 let scoreChart = null;         // the active Chart.js instance (or null)
+let seasonalRankChart = null;
 let chartMode = "score";       // "score" or "rank" - which chart is shown
 let rankScaleZoom = "default"; // y-axis zoom preset for the rank chart
 let timeRangeZoom = "all";     // x-axis time zoom preset: "all", "1y", "6m", "3m", "1m"
@@ -673,6 +676,7 @@ function selectSeasonalPlayer(playerName) {
 }
 
 function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
+  hideSeasonalRankChart();
   const searchTerm = searchValue.trim().toLowerCase();
   seasonalPlayerSummary.innerHTML = "";
   seasonalPlayerSummary.classList.add("hidden");
@@ -726,6 +730,10 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
   );
   const currentEntry = currentSeason && matches.find(match => match.scope === currentSeason.scope);
 
+  if (matches.length > 1) {
+    renderSeasonalRankChart(focusedPlayer, matches);
+  }
+
   seasonalPlayerSummary.innerHTML = `
     <div class="summary-item">
       <div class="summary-label">Player</div>
@@ -763,6 +771,91 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
 
   seasonalPlayerStatus.textContent = `${matches.length} seasonal ranking${matches.length === 1 ? "" : "s"} found for ${focusedPlayer}.`;
   seasonalPlayerHistoryWrapper.classList.remove("hidden");
+}
+
+function renderSeasonalRankChart(playerName, matches) {
+  const chartMatches = matches
+    .map(match => ({ ...match, rank: Number(match.rank) }))
+    .filter(match => Number.isFinite(match.rank));
+
+  if (chartMatches.length < 2 || !seasonalRankChartCanvas) {
+    return;
+  }
+
+  seasonalRankChart = new Chart(seasonalRankChartCanvas, {
+    type: "line",
+    data: {
+      labels: chartMatches.map(match => match.seasonName),
+      datasets: [{
+        label: `${playerName} seasonal rank`,
+        data: chartMatches.map(match => match.rank),
+        borderColor: "#4d9cff",
+        backgroundColor: "rgba(77, 156, 255, 0.16)",
+        pointBackgroundColor: chartMatches.map(match => getRankColor(match.rank)),
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        borderWidth: 3,
+        tension: 0.25,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: "index"
+      },
+      plugins: {
+        legend: {
+          labels: { color: "#c1ccdb" }
+        },
+        tooltip: {
+          callbacks: {
+            label: context => {
+              const match = chartMatches[context.dataIndex];
+              return `Rank: ${formatRank(match.rank)} · Score: ${formatScore(match.score)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: "#8e9db2",
+            maxRotation: 45,
+            minRotation: 0
+          },
+          grid: { display: false }
+        },
+        y: {
+          min: 1,
+          max: 100,
+          reverse: true,
+          ticks: {
+            color: "#8e9db2",
+            stepSize: 10,
+            precision: 0,
+            callback: value => Number.isInteger(value) ? formatRank(value) : ""
+          },
+          grid: { color: "rgba(142, 157, 178, 0.14)" }
+        }
+      }
+    }
+  });
+
+  seasonalRankChartContainer.classList.remove("hidden");
+}
+
+function hideSeasonalRankChart() {
+  if (seasonalRankChart) {
+    seasonalRankChart.destroy();
+    seasonalRankChart = null;
+  }
+
+  seasonalRankChartContainer?.classList.add("hidden");
 }
 
 function setLeaderboardView(showSeasonal) {
