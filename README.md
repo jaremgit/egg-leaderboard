@@ -35,13 +35,12 @@ If you'd prefer to update your score without providing your in-game ID OR you ha
 ## What this is, for people who can actually read code
 
 A static frontend (`index.html` / `app.js` / `styles.css`, no build step, no
-framework) reads pre-generated JSON snapshots out of `data/*.json` and renders
-search, history, charts, and leaderboard views client-side. New snapshots are
-produced two ways: a scheduled GitHub Action that pulls the public top-100
-leaderboard once a week, and a Cloudflare Worker that lets an individual
-player look up and publish their own single entry on demand. Both paths
-commit directly to `data/<date>.json` in this repo via the GitHub Contents
-API, which is also what triggers a Vercel redeploy of the static site.
+framework) reads pre-generated JSON snapshots and renders search, history,
+charts, and leaderboard views client-side. All Time snapshots are produced by
+a scheduled GitHub Action and player self-submissions are handled by a
+Cloudflare Worker. Seasonal snapshots are maintained separately by a second
+GitHub Action, with one latest top-100 JSON file per season. Data updates are
+committed to this repo and trigger a Vercel redeploy of the static site.
 
 ## How it fits together
 
@@ -120,15 +119,18 @@ intentional. I am immensely grateful to those that share their work and make the
 | `styles.css` | All styling for the site. |
 | `data/*.json` | One JSON snapshot per archived date (`YYYY-MM-DD.json`), each containing that date's observed leaderboard entries. |
 | `data/dates.json` | Ordered list of every date that has a snapshot - drives the date picker. |
+| `data/seasonal/` | One latest top-100 snapshot per seasonal scope plus `index.json`, which provides the season picker and current-season scope. |
 | `data/player-aliases.json` | Maps a player's current name to older names they used to go by, so search/history treats them as the same person. |
 | `worker/` | Cloudflare Worker source for the "Submit your score" feature (see [worker/README.md](worker/README.md) for setup). |
-| `.github/workflows/update-leaderboard.yml` | Scheduled GitHub Action that pulls the current top-100 ALL_TIME AAA leaderboard once a week and commits a new daily snapshot. |
-| `vercel.json` | Deployment config - skips triggering a Vercel rebuild for individual player-submission commits (only the weekly archive commit and manual pushes trigger a real deploy). |
+| `scripts/update-seasonal-leaderboards.cjs` | Fetches and validates seasonal scope top-100 results, updating only changed seasonal snapshots. |
+| `.github/workflows/update-leaderboard.yml` | Scheduled GitHub Action that pulls the current top-100 ALL_TIME AAA leaderboard on Monday and Friday and commits a daily snapshot. |
+| `.github/workflows/update-seasonal-leaderboards.yml` | Separate seasonal archive workflow; runs Monday at 00:01 UTC and updates only `data/seasonal/`. |
+| `vercel.json` | Deployment config - skips triggering a Vercel rebuild for individual player-submission commits. |
 
 ## How data gets in
 
-There are three paths that end up writing to `data/<date>.json` - one
-historical/manual, and two ongoing/automated:
+There are four ways leaderboard data enters the archive: historical/manual
+All Time data, ongoing All Time and seasonal pulls, and player self-submissions:
 
 1. **Historical data (manual, one-time backfill)** - before this site's
    automated pull and submission Worker existed, older snapshots were
@@ -155,12 +157,19 @@ historical/manual, and two ongoing/automated:
 	 the date to `dates.json`).
    - Due to the manual nature of this process, some early snapshots may have transcription errors or missing entries. If you notice any, please let me know and I can correct them.
 
-2. **Weekly automated pull** - every Monday, `update-leaderboard.yml` fetches
+2. **All Time automated pull** - `update-leaderboard.yml` fetches
    the public top-100 ALL_TIME AAA leaderboard from `ei_worker`, merges in any
-   player submissions made earlier that day (so they aren't overwritten), and
-   commits the result as the permanent snapshot for that date. This is what
-   keeps the archive going forward without further manual work.
-3. **Player self-submission** - a visitor can click **Submit Your Score**,
+	 player submissions made earlier that day (so they aren't overwritten), and
+   commits the result as the permanent snapshot for that date on its Monday and
+   Friday schedule.
+3. **Seasonal automated pull** - `update-seasonal-leaderboards.yml` reads the
+   valid seasonal scopes from `leaderboard_info`, excludes the All Time scope,
+   and fetches each season's Grade 5 top-100 leaderboard once a week on Monday
+   at 00:01 UTC. It stores one `data/seasonal/<scope>.json` snapshot per season
+   and rewrites a snapshot only when its entries change. Seasonal player
+   summaries compare a player's recorded top-100 ranks across these snapshots;
+   the archive does not retain weekly changes within a season.
+4. **Player self-submission** - a visitor can click **Submit Your Score**,
    enter their EggInc ID (EID), preview their own rank/score, and confirm
    publishing it. This is handled by the Cloudflare Worker in `worker/`,
    which:
@@ -172,12 +181,13 @@ historical/manual, and two ongoing/automated:
    - Also caches the entry in Cloudflare KV so the site can show it
 	 immediately, without waiting for a Vercel rebuild.
 
-All three paths write to the same `data/<date>.json` shape
+The All Time pull and player self-submission write to the same `data/<date>.json` shape
 (`{ date, complete, observed_entries, entries: [{ rank, player, score,
 source }] }`), which is why the frontend can treat every snapshot the same
 way regardless of how it originated - `source` on each entry (e.g.
 `"ei_worker"` vs `"submission"`) is the only trace of where a given row came
-from.
+from. Seasonal snapshots have a separate per-scope shape and are not written
+to the All Time date archive.
 
 ## Running the site locally
 

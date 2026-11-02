@@ -85,8 +85,8 @@
   <header class="site-header">
     <div class="container">
       <p class="eyebrow">Historical archive</p>
-      <h1>Egg Inc All Time Leaderboard - Experimental</h1>
-      <p class="subtitle">
+      <h1 id="site-title">Egg Inc All Time Leaderboard - Experimental</h1>
+      <p id="site-subtitle" class="subtitle">
         Explore archived All Time leaderboard scores and rankings!
       </p>
     </div>
@@ -102,6 +102,12 @@
   </div>
 
   <main class="container">
+    <div class="leaderboard-view-toggle" role="group" aria-label="Leaderboard type">
+      <button id="all-time-view-button" class="view-toggle-button active" type="button" aria-pressed="true">All Time</button>
+      <button id="seasonal-view-button" class="view-toggle-button" type="button" aria-pressed="false">Seasonal</button>
+    </div>
+
+    <div id="all-time-view">
     <section id="search-card" class="search-card">
       <div class="lookup-columns">
         <div class="lookup-column search-column">
@@ -269,6 +275,79 @@
         </table>
       </div>
     </section>
+    </div>
+
+    <div id="seasonal-view" class="hidden">
+      <section id="seasonal-search-card" class="search-card">
+        <p class="eyebrow">Player lookup</p>
+        <h2>Search seasonal history</h2>
+        <p class="search-help">Search players recorded in the seasonal top-100 snapshots.</p>
+
+        <div class="search-controls">
+          <label for="seasonal-player-search">Player name</label>
+          <input
+            id="seasonal-player-search"
+            type="search"
+            placeholder="Enter a player name to search seasonal results."
+            autocomplete="off"
+          >
+          <button id="seasonal-clear-search" type="button">Clear</button>
+        </div>
+
+        <p id="seasonal-player-status" class="status"></p>
+        <div id="seasonal-player-summary" class="player-summary hidden"></div>
+        <div id="seasonal-player-history-wrapper" class="table-wrapper hidden">
+          <table id="seasonal-player-history-table">
+            <thead>
+              <tr>
+                <th>Season</th>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Total score</th>
+              </tr>
+            </thead>
+            <tbody id="seasonal-player-history-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="seasonal-controls-card" class="controls-card">
+        <div class="date-control">
+          <p class="eyebrow">Season</p>
+          <label for="seasonal-season-select">Seasonal leaderboard</label>
+          <select id="seasonal-season-select" disabled>
+            <option>Loading seasons...</option>
+          </select>
+        </div>
+      </section>
+
+      <section id="seasonal-leaderboard-card" class="leaderboard-card">
+        <div class="leaderboard-heading">
+          <div>
+            <p class="eyebrow">Seasonal snapshot</p>
+            <h2 id="seasonal-selected-season">Loading...</h2>
+          </div>
+          <p id="seasonal-status" class="status">Loading...</p>
+        </div>
+
+        <div class="notice">
+          Seasonal snapshots show the top 100 recorded players for each season. One latest snapshot is kept per season.
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Total score</th>
+              </tr>
+            </thead>
+            <tbody id="seasonal-leaderboard-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </main>
 
   <!-- Submit Score Modal -->

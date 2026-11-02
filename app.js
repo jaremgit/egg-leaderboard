@@ -78,6 +78,24 @@ const timeRangeZoomSelect =
 const dataFilterSelect =
   document.getElementById("data-filter-select");
 
+const allTimeViewButton = document.getElementById("all-time-view-button");
+const seasonalViewButton = document.getElementById("seasonal-view-button");
+const allTimeView = document.getElementById("all-time-view");
+const seasonalView = document.getElementById("seasonal-view");
+const siteTitle = document.getElementById("site-title");
+const siteSubtitle = document.getElementById("site-subtitle");
+const dateFormatFloater = document.getElementById("date-format-floater");
+const seasonalSeasonSelect = document.getElementById("seasonal-season-select");
+const seasonalSelectedSeason = document.getElementById("seasonal-selected-season");
+const seasonalStatus = document.getElementById("seasonal-status");
+const seasonalLeaderboardBody = document.getElementById("seasonal-leaderboard-body");
+const seasonalPlayerSearch = document.getElementById("seasonal-player-search");
+const seasonalClearSearchButton = document.getElementById("seasonal-clear-search");
+const seasonalPlayerStatus = document.getElementById("seasonal-player-status");
+const seasonalPlayerSummary = document.getElementById("seasonal-player-summary");
+const seasonalPlayerHistoryWrapper = document.getElementById("seasonal-player-history-wrapper");
+const seasonalPlayerHistoryBody = document.getElementById("seasonal-player-history-body");
+
 const disclaimerModal = document.getElementById("disclaimer-modal");
 const closeDisclaimerModalButton = document.getElementById("close-disclaimer-modal");
 const disclaimerCloseButton = document.getElementById("disclaimer-close-button");
@@ -245,6 +263,10 @@ let rankScaleZoom = "default"; // y-axis zoom preset for the rank chart
 let timeRangeZoom = "all";     // x-axis time zoom preset: "all", "1y", "6m", "3m", "1m"
 let dateEntryCountMap = {};    // date -> number of entries (used by heatmap)
 let dataFilterMode = "raw";    // "raw" | "weekly" | "weekly-peak" | "monthly" | "monthly-peak"
+let seasonalCatalog = null;
+let seasonalLeaderboards = [];
+let seasonalDataLoaded = false;
+let seasonalDataLoading = null;
 
 // URL of the Cloudflare Worker that privately looks up a submitted EggInc ID
 // and publishes just the resulting name/rank/score (see worker/README.md
@@ -517,6 +539,250 @@ async function loadAllLeaderboards() {
   );
 
   allLeaderboards = results;
+}
+
+async function loadSeasonalLeaderboards() {
+  if (seasonalDataLoaded) {
+    return;
+  }
+  if (seasonalDataLoading) {
+    return seasonalDataLoading;
+  }
+
+  seasonalStatus.textContent = "Loading seasonal archive...";
+  seasonalDataLoading = (async () => {
+    const response = await fetch("data/seasonal/index.json");
+    if (!response.ok) {
+      throw new Error("Could not load the seasonal archive index.");
+    }
+
+    const catalog = await response.json();
+    if (!catalog || !Array.isArray(catalog.seasons)) {
+      throw new Error("The seasonal archive index is invalid.");
+    }
+
+    const seasons = catalog.seasons.filter(season =>
+      season && typeof season.scope === "string" &&
+      /^[a-zA-Z0-9_-]+$/.test(season.scope) &&
+      typeof season.name === "string"
+    );
+
+    seasonalCatalog = { ...catalog, seasons };
+    if (seasons.length === 0) {
+      seasonalSeasonSelect.innerHTML = "<option value=\"\">No seasons available</option>";
+      seasonalSeasonSelect.disabled = true;
+      seasonalSelectedSeason.textContent = "No seasons available";
+      seasonalLeaderboardBody.innerHTML = "";
+      seasonalStatus.textContent = "Seasonal data will appear after the archive's first successful update.";
+      seasonalPlayerStatus.textContent = "No seasonal snapshots are available yet.";
+      return;
+    }
+
+    const loadedSeasons = await Promise.all(seasons.map(async season => {
+      const snapshotResponse = await fetch(`data/seasonal/${encodeURIComponent(season.scope)}.json`);
+      if (!snapshotResponse.ok) {
+        throw new Error(`Could not load the ${season.name} snapshot.`);
+      }
+
+      const snapshot = await snapshotResponse.json();
+      if (snapshot.scope !== season.scope || !Array.isArray(snapshot.entries)) {
+        throw new Error(`The ${season.name} snapshot is invalid.`);
+      }
+
+      return {
+        ...season,
+        updatedAt: snapshot.updatedAt,
+        entries: snapshot.entries
+      };
+    }));
+
+    seasonalLeaderboards = loadedSeasons;
+    seasonalSeasonSelect.innerHTML = "";
+    loadedSeasons.forEach(season => {
+      const option = document.createElement("option");
+      option.value = season.scope;
+      option.textContent = `${season.name}${season.scope === catalog.currentScope ? " (Current)" : ""}`;
+      seasonalSeasonSelect.appendChild(option);
+    });
+
+    const selectedScope = loadedSeasons.some(season => season.scope === catalog.currentScope)
+      ? catalog.currentScope
+      : loadedSeasons[loadedSeasons.length - 1].scope;
+    seasonalSeasonSelect.value = selectedScope;
+    seasonalSeasonSelect.disabled = false;
+    renderSeasonalLeaderboard(selectedScope);
+    if (seasonalPlayerSearch.value.trim()) {
+      searchSeasonalPlayer(seasonalPlayerSearch.value);
+    }
+  })();
+
+  try {
+    await seasonalDataLoading;
+    seasonalDataLoaded = true;
+  } catch (error) {
+    seasonalStatus.textContent = `Could not load seasonal data: ${error.message}`;
+    seasonalSelectedSeason.textContent = "Seasonal archive unavailable";
+    seasonalSeasonSelect.disabled = true;
+    seasonalDataLoaded = false;
+  } finally {
+    seasonalDataLoading = null;
+  }
+}
+
+function renderSeasonalLeaderboard(scope) {
+  const season = seasonalLeaderboards.find(item => item.scope === scope);
+  seasonalLeaderboardBody.innerHTML = "";
+
+  if (!season) {
+    seasonalSelectedSeason.textContent = "No season selected";
+    seasonalStatus.textContent = "Choose an available season.";
+    return;
+  }
+
+  const isCurrent = seasonalCatalog?.currentScope === season.scope;
+  seasonalSelectedSeason.textContent = `${season.name}${isCurrent ? " (Current)" : ""}`;
+  const updatedLabel = season.updatedAt ? ` · Last changed ${season.updatedAt}` : "";
+  seasonalStatus.textContent = `${season.entries.length} observed entries${updatedLabel}`;
+
+  [...season.entries]
+    .sort((a, b) => Number(a.rank) - Number(b.rank))
+    .forEach(entry => {
+      const displayName = normalizePlayerName(entry.player);
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${formatRank(entry.rank)}</td>
+        <td class="player-name-cell" tabindex="0" role="button">${escapeHtml(displayName)}</td>
+        <td>${formatScore(entry.score)}</td>
+      `;
+
+      const nameCell = row.querySelector(".player-name-cell");
+      nameCell.addEventListener("click", () => selectSeasonalPlayer(displayName));
+      nameCell.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectSeasonalPlayer(displayName);
+        }
+      });
+      seasonalLeaderboardBody.appendChild(row);
+    });
+}
+
+function selectSeasonalPlayer(playerName) {
+  seasonalPlayerSearch.value = playerName;
+  searchSeasonalPlayer(playerName);
+}
+
+function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
+  const searchTerm = searchValue.trim().toLowerCase();
+  seasonalPlayerSummary.innerHTML = "";
+  seasonalPlayerSummary.classList.add("hidden");
+  seasonalPlayerHistoryBody.innerHTML = "";
+  seasonalPlayerHistoryWrapper.classList.add("hidden");
+
+  if (!searchTerm) {
+    seasonalPlayerStatus.textContent = "";
+    return;
+  }
+  if (seasonalLeaderboards.length === 0) {
+    seasonalPlayerStatus.textContent = "No seasonal leaderboard data is loaded.";
+    return;
+  }
+
+  const allEntries = seasonalLeaderboards.flatMap((season, seasonIndex) =>
+    season.entries.map(entry => ({
+      ...entry,
+      scope: season.scope,
+      seasonName: season.name,
+      seasonIndex
+    }))
+  );
+  const matchingNames = [
+    ...new Set(
+      allEntries
+        .filter(entry =>
+          entry.player.toLowerCase().includes(searchTerm) ||
+          resolvePlayerName(entry.player).toLowerCase().includes(searchTerm)
+        )
+        .map(entry => resolvePlayerName(entry.player))
+    )
+  ];
+
+  if (matchingNames.length === 0) {
+    seasonalPlayerStatus.textContent = "No matching players found in the seasonal top-100 snapshots.";
+    return;
+  }
+
+  const focusedPlayer = chooseFocusedPlayer(matchingNames, searchTerm);
+  const matches = allEntries
+    .filter(entry => resolvePlayerName(entry.player) === focusedPlayer)
+    .sort((a, b) => a.seasonIndex - b.seasonIndex);
+  const ranks = matches.map(match => Number(match.rank)).filter(Number.isFinite);
+  const bestRank = ranks.length > 0 ? Math.min(...ranks) : null;
+  const averageRank = ranks.length > 0
+    ? (ranks.reduce((sum, rank) => sum + rank, 0) / ranks.length).toFixed(1)
+    : "Unknown";
+  const currentSeason = seasonalLeaderboards.find(season =>
+    season.scope === seasonalCatalog?.currentScope
+  );
+  const currentEntry = currentSeason && matches.find(match => match.scope === currentSeason.scope);
+
+  seasonalPlayerSummary.innerHTML = `
+    <div class="summary-item">
+      <div class="summary-label">Player</div>
+      <div class="summary-value">${escapeHtml(focusedPlayer)}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Seasons recorded</div>
+      <div class="summary-value">${matches.length}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Best seasonal rank</div>
+      <div class="summary-value">${bestRank === null ? "Unknown" : formatRank(bestRank)}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Average recorded rank</div>
+      <div class="summary-value">${averageRank}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Current season rank${currentSeason ? ` (${escapeHtml(currentSeason.name)})` : ""}</div>
+      <div class="summary-value">${currentEntry ? formatRank(currentEntry.rank) : "Not in recorded top 100"}</div>
+    </div>
+  `;
+  seasonalPlayerSummary.classList.remove("hidden");
+
+  matches.forEach(match => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${escapeHtml(match.seasonName)}</td>
+      <td>${formatRank(match.rank)}</td>
+      <td>${escapeHtml(match.player)}</td>
+      <td>${formatScore(match.score)}</td>
+    `;
+    seasonalPlayerHistoryBody.appendChild(row);
+  });
+
+  seasonalPlayerStatus.textContent = `${matches.length} seasonal ranking${matches.length === 1 ? "" : "s"} found for ${focusedPlayer}.`;
+  seasonalPlayerHistoryWrapper.classList.remove("hidden");
+}
+
+function setLeaderboardView(showSeasonal) {
+  allTimeView.classList.toggle("hidden", showSeasonal);
+  seasonalView.classList.toggle("hidden", !showSeasonal);
+  dateFormatFloater.classList.toggle("hidden", showSeasonal);
+  allTimeViewButton.classList.toggle("active", !showSeasonal);
+  seasonalViewButton.classList.toggle("active", showSeasonal);
+  allTimeViewButton.setAttribute("aria-pressed", String(!showSeasonal));
+  seasonalViewButton.setAttribute("aria-pressed", String(showSeasonal));
+  siteTitle.textContent = showSeasonal
+    ? "Egg Inc Seasonal Leaderboards - Experimental"
+    : "Egg Inc All Time Leaderboard - Experimental";
+  siteSubtitle.textContent = showSeasonal
+    ? "Explore recorded seasonal leaderboard rankings and player history!"
+    : "Explore archived All Time leaderboard scores and rankings!";
+
+  if (showSeasonal) {
+    loadSeasonalLeaderboards();
+  }
 }
 
 // Finds the most recent date this player (matched by canonical/normalized
@@ -1444,6 +1710,19 @@ if (jumpLeaderboardButton) {
     scrollToElementById("leaderboard-card");
   });
 }
+
+allTimeViewButton.addEventListener("click", () => setLeaderboardView(false));
+seasonalViewButton.addEventListener("click", () => setLeaderboardView(true));
+seasonalSeasonSelect.addEventListener("change", () => {
+  renderSeasonalLeaderboard(seasonalSeasonSelect.value);
+});
+seasonalPlayerSearch.addEventListener("input", () => {
+  searchSeasonalPlayer(seasonalPlayerSearch.value);
+});
+seasonalClearSearchButton.addEventListener("click", () => {
+  seasonalPlayerSearch.value = "";
+  searchSeasonalPlayer("");
+});
 
 previousButton.addEventListener("click", () => {
   if (currentDateIndex > 0) {

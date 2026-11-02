@@ -175,6 +175,34 @@ main {
   padding: 18px 0 50px;
 }
 
+.leaderboard-view-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(23, 35, 55, 0.94);
+  box-shadow: 0 10px 24px var(--shadow);
+}
+
+.view-toggle-button {
+  flex: 1;
+  max-width: 240px;
+  background: transparent;
+  color: var(--text-soft);
+}
+
+.view-toggle-button.active {
+  background: var(--blue-dark);
+  color: white;
+}
+
+.view-toggle-button.active:hover {
+  background: var(--blue);
+}
+
 .controls-card,
 .search-card,
 .leaderboard-card {
@@ -1005,6 +1033,15 @@ tbody tr:hover {
 }
 
 @media (max-width: 450px) {
+  .leaderboard-view-toggle {
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .view-toggle-button {
+    padding: 10px 8px;
+  }
+
   .player-summary {
     grid-template-columns: 1fr;
   }
