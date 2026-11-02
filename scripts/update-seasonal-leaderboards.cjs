@@ -3,6 +3,8 @@ const path = require("node:path");
 
 const DEFAULT_API_BASE_URL = "https://ei_worker.tylertms.workers.dev";
 const SCOPE_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const MAX_CONCURRENT_SEASON_REQUESTS = 3;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 /** @typedef {{ scope: string, name: string }} Season */
 /** @typedef {{ rank: string, player: string, score: string, source: string }} LeaderboardEntry */
@@ -133,8 +135,11 @@ function createSeasonSnapshot({ scope, name, entries, existing, updatedAt }) {
 async function getJson(url, fetchImpl) {
   let response;
   try {
-    response = await fetchImpl(url);
-  } catch {
+    response = await fetchImpl(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+  } catch (error) {
+    if (error?.name === "TimeoutError" || error?.name === "AbortError") {
+      throw new Error(`Request timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds for ${url.pathname}.`);
+    }
     throw new Error(`Network request failed for ${url.pathname}.`);
   }
   if (!response.ok) {
@@ -220,27 +225,57 @@ async function updateSeasonalArchive({
   const liveSeasons = getSeasonScopes(info);
   const updatedAt = now.toISOString().slice(0, 10);
   const pendingWrites = [];
+  const concurrency = Math.min(MAX_CONCURRENT_SEASON_REQUESTS, liveSeasons.length);
+  let nextSeasonIndex = 0;
+  let firstFailure = null;
 
-  for (const season of liveSeasons) {
-    const leaderboardUrl = new URL("/leaderboard", apiBaseUrl);
-    leaderboardUrl.searchParams.set("eid", eid);
-    leaderboardUrl.searchParams.set("scope", season.scope);
-    leaderboardUrl.searchParams.set("grade", "5");
+  console.log(`[Seasonal] Found ${liveSeasons.length} scopes; fetching up to ${concurrency} at a time.`);
 
-    const payload = await getJson(leaderboardUrl, fetchImpl);
-    const entries = normalizeEntries(payload, season.scope);
-    const filePath = path.join(seasonalDir, `${season.scope}.json`);
-    const existingSnapshot = await readJsonIfPresent(filePath);
-    const result = createSeasonSnapshot({
-      ...season,
-      entries,
-      existing: existingSnapshot,
-      updatedAt
-    });
+  async function processNextSeason() {
+    while (nextSeasonIndex < liveSeasons.length && !firstFailure) {
+      const index = nextSeasonIndex++;
+      const season = liveSeasons[index];
+      const startedAt = Date.now();
+      console.log(`[Seasonal] [${index + 1}/${liveSeasons.length}] Fetching ${season.scope} (${season.name}).`);
 
-    if (result.changed) {
-      pendingWrites.push({ filePath, snapshot: result.snapshot, scope: season.scope });
+      try {
+        const leaderboardUrl = new URL("/leaderboard", apiBaseUrl);
+        leaderboardUrl.searchParams.set("eid", eid);
+        leaderboardUrl.searchParams.set("scope", season.scope);
+        leaderboardUrl.searchParams.set("grade", "5");
+
+        const payload = await getJson(leaderboardUrl, fetchImpl);
+        const entries = normalizeEntries(payload, season.scope);
+        const filePath = path.join(seasonalDir, `${season.scope}.json`);
+        const existingSnapshot = await readJsonIfPresent(filePath);
+        const result = createSeasonSnapshot({
+          ...season,
+          entries,
+          existing: existingSnapshot,
+          updatedAt
+        });
+
+        if (result.changed) {
+          pendingWrites.push({ filePath, snapshot: result.snapshot, scope: season.scope });
+        }
+
+        const elapsedSeconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+        console.log(
+          `[Seasonal] [${index + 1}/${liveSeasons.length}] ${season.scope}: ${entries.length} entries in ${elapsedSeconds}s; ${result.changed ? "changed" : "unchanged"}.`
+        );
+      } catch (error) {
+        const elapsedSeconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+        firstFailure = { scope: season.scope, error };
+        console.error(
+          `[Seasonal] [${index + 1}/${liveSeasons.length}] ${season.scope} failed after ${elapsedSeconds}s: ${error.message}`
+        );
+      }
     }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => processNextSeason()));
+  if (firstFailure) {
+    throw new Error(`Seasonal update stopped at '${firstFailure.scope}': ${firstFailure.error.message}`);
   }
 
   const catalog = mergeCatalog(existingCatalog, liveSeasons);
