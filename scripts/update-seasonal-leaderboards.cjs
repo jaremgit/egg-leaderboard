@@ -59,7 +59,7 @@ function normalizeEntries(payload, scope) {
 
   const entries = payload.topEntriesList.map((entry, index) => {
     const rank = Number(entry?.rank);
-    const player = [
+    const playerName = [
       entry?.alias,
       entry?.name,
       entry?.player_name,
@@ -69,14 +69,12 @@ function normalizeEntries(payload, scope) {
       entry?.username,
       entry?.player
     ].find(value => typeof value === "string" && value.trim())?.trim() || "";
+    const player = playerName || `Unknown (${scope} rank ${rank})`;
     const score = entry?.score;
     const invalidFields = [];
 
     if (!Number.isInteger(rank) || rank < 1) {
       invalidFields.push("rank");
-    }
-    if (!player) {
-      invalidFields.push("player name");
     }
     if (score === undefined || score === null || !["string", "number"].includes(typeof score)) {
       invalidFields.push("score");

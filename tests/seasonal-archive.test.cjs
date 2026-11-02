@@ -77,10 +77,14 @@ test("normalizeEntries returns a rank-sorted validated top list", () => {
     ]
   );
   assert.throws(() => normalizeEntries({ topEntriesList: [] }, "spring_2025"), /did not contain entries/);
+  assert.deepEqual(
+    normalizeEntries({ topEntriesList: [{ rank: 4, alias: "", score: 30 }] }, "spring_2025"),
+    [{ rank: "4", player: "Unknown (spring_2025 rank 4)", score: "30", source: "ei_worker" }]
+  );
   assert.throws(
-    () => normalizeEntries({ topEntriesList: [{ rank: 1, score: 30, secretName: "Private Player" }] }, "spring_2025"),
+    () => normalizeEntries({ topEntriesList: [{ rank: "invalid", alias: "Private Player", score: 30 }] }, "spring_2025"),
     error => {
-      assert.match(error.message, /entry 1 has invalid player name; available fields: rank, score, secretName/);
+      assert.match(error.message, /entry 1 has invalid rank; available fields: alias, rank, score/);
       assert.doesNotMatch(error.message, /Private Player/);
       return true;
     }
