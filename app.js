@@ -774,10 +774,12 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
 }
 
 function renderSeasonalRankChart(playerName, matches) {
-  const seasons = seasonalLeaderboards.map(season => ({
+  const allSeasons = seasonalLeaderboards.map(season => ({
     ...season,
     rank: Number(matches.find(match => match.scope === season.scope)?.rank)
   }));
+  const firstRankedSeason = allSeasons.findIndex(season => Number.isFinite(season.rank));
+  const seasons = allSeasons.slice(firstRankedSeason);
   const rankedSeasons = seasons.filter(season => Number.isFinite(season.rank));
 
   if (rankedSeasons.length < 2 || !seasonalRankChartCanvas) {
