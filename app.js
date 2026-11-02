@@ -115,6 +115,9 @@ const submitPreviewPlayer = document.getElementById("submit-preview-player");
 const submitPreviewRank = document.getElementById("submit-preview-rank");
 const submitPreviewScore = document.getElementById("submit-preview-score");
 const submitPreviewLastSeen = document.getElementById("submit-preview-last-seen");
+const submitSeasonalCheckbox = document.getElementById("submit-seasonal-checkbox");
+const submitSeasonalPreview = document.getElementById("submit-seasonal-preview");
+const submitSeasonalPreviewResults = document.getElementById("submit-seasonal-preview-results");
 const jumpTopButton = document.getElementById("jump-top-button");
 const jumpSearchButton = document.getElementById("jump-search-button");
 const jumpControlsButton = document.getElementById("jump-controls-button");
@@ -135,6 +138,38 @@ const saveEidCheckbox = document.getElementById("save-eid-checkbox");
 // Lazy getters for heatmap elements (query on demand)
 function getHeatmapButton() {
   return document.getElementById("heatmap-button");
+}
+
+function mergeSeasonalEntries(entries) {
+  entries.forEach(entry => {
+    const season = seasonalLeaderboards.find(item => item.scope === entry.scope);
+    if (!season) {
+      return;
+    }
+
+    const existingIndex = season.entries.findIndex(item =>
+      item.player?.toLowerCase() === entry.player.toLowerCase()
+    );
+    const row = {
+      rank: String(entry.rank),
+      player: entry.player,
+      score: String(entry.score),
+      source: "submission"
+    };
+    if (existingIndex >= 0) {
+      season.entries[existingIndex] = row;
+    } else {
+      season.entries.push(row);
+    }
+    season.entries.sort((a, b) => Number(a.rank) - Number(b.rank));
+  });
+
+  if (entries.length > 0) {
+    renderSeasonalLeaderboard(seasonalSeasonSelect.value);
+    if (seasonalPlayerSearch.value.trim()) {
+      searchSeasonalPlayer(seasonalPlayerSearch.value);
+    }
+  }
 }
 
 function getHeatmapModal() {
@@ -279,6 +314,7 @@ const SUBMIT_WORKER_URL = "https://egg-leaderboard-submit.jarem.workers.dev/subm
 
 // Store pre-fetched player data from the lookup phase so we can use it in confirm
 let cachedSubmitData = null;
+let cachedSeasonalSubmitEntries = [];
 
 // Same Worker, but the read-only endpoint that returns today's (or another
 // date's) submissions that have been confirmed but not yet folded into the
@@ -1991,10 +2027,19 @@ function resetSubmitModal() {
   submitStatus.textContent = "";
   submitStatus.className = "status";
   submitPreview.classList.add("hidden");
+  cachedSubmitData = null;
+  cachedSeasonalSubmitEntries = [];
+  submitSeasonalPreview?.classList.add("hidden");
+  if (submitSeasonalPreviewResults) {
+    submitSeasonalPreviewResults.innerHTML = "";
+  }
   if (submitLookupSection) {
     submitLookupSection.classList.remove("hidden");
   }
   submitLookupButton.disabled = false;
+  if (submitSeasonalCheckbox) {
+    submitSeasonalCheckbox.disabled = false;
+  }
   if (submitPreviewLastSeen) {
     submitPreviewLastSeen.textContent = "";
     submitPreviewLastSeen.classList.add("hidden");
@@ -2094,7 +2139,9 @@ if (submitLookupForm) {
     }
 
     submitLookupButton.disabled = true;
-    submitStatus.textContent = "Looking up your ranking...";
+    submitStatus.textContent = submitSeasonalCheckbox?.checked
+      ? "Looking up your All Time and seasonal rankings..."
+      : "Looking up your ranking...";
     submitStatus.className = "status";
     submitPreview.classList.add("hidden");
 
@@ -2139,7 +2186,8 @@ if (submitLookupForm) {
           action: "preview",
           player: playerName,
           rank: String(eiWorkerData.rank),
-          score: String(eiWorkerData.score)
+          score: String(eiWorkerData.score),
+          includeSeasonal: Boolean(submitSeasonalCheckbox?.checked)
         })
       });
 
@@ -2155,6 +2203,28 @@ if (submitLookupForm) {
         rank: String(eiWorkerData.rank),
         score: String(eiWorkerData.score)
       };
+      cachedSeasonalSubmitEntries = Array.isArray(result.seasonalEntries)
+        ? result.seasonalEntries
+        : [];
+
+      if (submitSeasonalPreview && submitSeasonalPreviewResults) {
+        submitSeasonalPreviewResults.innerHTML = "";
+        if (submitSeasonalCheckbox?.checked) {
+          if (cachedSeasonalSubmitEntries.length === 0) {
+            submitSeasonalPreviewResults.textContent = "No seasonal rankings were found for this ID.";
+          } else {
+            cachedSeasonalSubmitEntries.forEach(entry => {
+              const row = document.createElement("p");
+              row.textContent = `${entry.name}: rank ${formatRank(entry.rank)}, score ${formatScore(entry.score)}`;
+              submitSeasonalPreviewResults.appendChild(row);
+            });
+          }
+          submitSeasonalPreview.classList.remove("hidden");
+          submitSeasonalCheckbox.disabled = true;
+        } else {
+          submitSeasonalPreview.classList.add("hidden");
+        }
+      }
 
       submitPreviewPlayer.textContent = result.player;
       submitPreviewRank.textContent = formatRank(result.rank);
@@ -2203,7 +2273,8 @@ if (submitConfirmButton) {
           action: "confirm",
           player: cachedSubmitData?.player,
           rank: cachedSubmitData?.rank,
-          score: cachedSubmitData?.score
+          score: cachedSubmitData?.score,
+          includeSeasonal: Boolean(submitSeasonalCheckbox?.checked)
         })
       });
 
@@ -2222,6 +2293,17 @@ if (submitConfirmButton) {
         `Success! Added ${result.player} - rank ${result.rank}, score ${result.score}.`;
       submitStatus.className = "status success";
       submitPreview.classList.add("hidden");
+      const confirmedSeasonalEntries = Array.isArray(result.seasonalEntries)
+        ? result.seasonalEntries
+        : [];
+      if (confirmedSeasonalEntries.length > 0) {
+        try {
+          await loadSeasonalLeaderboards();
+          mergeSeasonalEntries(confirmedSeasonalEntries);
+        } catch {
+          // The confirmed submission is saved; archive reload can happen later.
+        }
+      }
 
       try {
         await refreshArchiveData();

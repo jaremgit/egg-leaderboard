@@ -400,6 +400,10 @@
             <input id="save-eid-checkbox" type="checkbox" checked>
             Remember this ID on this device
           </label>
+          <label class="save-eid-checkbox-label">
+            <input id="submit-seasonal-checkbox" type="checkbox">
+            Also look up and submit my seasonal rankings
+          </label>
         </div>
 
         <p id="submit-status" class="status"></p>
@@ -416,6 +420,11 @@
           <div class="summary-item">
             <p class="summary-label">Score</p>
             <p id="submit-preview-score" class="summary-value"></p>
+          </div>
+
+          <div id="submit-seasonal-preview" class="submit-seasonal-preview hidden">
+            <p class="summary-label">Seasonal rankings to submit</p>
+            <div id="submit-seasonal-preview-results"></div>
           </div>
 
           <p id="submit-preview-last-seen" class="submit-preview-last-seen"></p>

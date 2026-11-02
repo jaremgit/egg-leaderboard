@@ -78,11 +78,13 @@ export default {
 
     let eid;
     let action;
+    let includeSeasonal;
     let prefetchedPlayer, prefetchedRank, prefetchedScore;
     try {
       const body = await request.json();
       eid = typeof body.eid === "string" ? body.eid.trim() : "";
       action = body.action === "confirm" ? "confirm" : "preview";
+      includeSeasonal = body.includeSeasonal === true;
       // Extract pre-fetched data if provided by the frontend
       prefetchedPlayer = body.player;
       prefetchedRank = body.rank;
@@ -120,6 +122,15 @@ export default {
         return withCors(jsonError(error.message, 502));
       }
 
+      let seasonalEntries = [];
+      if (includeSeasonal) {
+        try {
+          seasonalEntries = await lookupSeasonalEntries(eid, entry.player, env);
+        } catch (error) {
+          return withCors(jsonError(error.message, 502));
+        }
+      }
+
       return withCors(
         new Response(
           JSON.stringify({
@@ -127,6 +138,7 @@ export default {
             player: entry.player,
             rank: entry.rank,
             score: entry.score,
+            seasonalEntries,
             alreadySubmittedToday: Boolean(alreadySubmittedToday)
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
@@ -156,6 +168,15 @@ export default {
     } catch (error) {
       return withCors(jsonError(error.message, 502));
     }
+
+    let seasonalEntries = [];
+    if (includeSeasonal) {
+      try {
+        seasonalEntries = await lookupSeasonalEntries(eid, entry.player, env);
+      } catch (error) {
+        return withCors(jsonError(error.message, 502));
+      }
+    }
     // "eid" is not referenced again below - it is intentionally discarded
     // here now that the lookup is complete.
 
@@ -164,6 +185,14 @@ export default {
       await commitEntryToGitHub(entry, env);
     } catch (error) {
       return withCors(jsonError(error.message, 502));
+    }
+
+    if (includeSeasonal) {
+      try {
+        await commitSeasonalEntriesToGitHub(seasonalEntries, env);
+      } catch (error) {
+        return withCors(jsonError(error.message, 502));
+      }
     }
 
     // ---- Cache it in KV so the site can show it instantly ----------------
@@ -190,7 +219,8 @@ export default {
           ok: true,
           player: entry.player,
           rank: entry.rank,
-          score: entry.score
+          score: entry.score,
+          seasonalEntries
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       )
@@ -342,6 +372,135 @@ async function lookupPlayerEntry(eid, env, prefetchedData = null) {
     rank: String(rank),
     score: String(score)
   };
+}
+
+async function lookupSeasonalEntries(eid, player, env) {
+  const base = env.EI_WORKER_BASE || "https://ei_worker.tylertms.workers.dev";
+  const grade = env.EI_GRADE || "5";
+  let infoResponse;
+  try {
+    infoResponse = await fetch(`${base}/leaderboard_info`, { cf: { cacheTtl: 0, mirage: false } });
+  } catch {
+    throw new Error("Couldn't reach the seasonal leaderboard service. Please try again later.");
+  }
+  if (!infoResponse.ok) {
+    throw new Error(`Seasonal leaderboard service returned HTTP ${infoResponse.status}.`);
+  }
+
+  const info = await infoResponse.json();
+  if (!Array.isArray(info?.seasonsList)) {
+    throw new Error("The seasonal leaderboard service returned an invalid season list.");
+  }
+
+  const seasons = info.seasonsList.filter(season => {
+    const scope = typeof season?.scope === "string" ? season.scope.trim() : "";
+    return scope && scope.toLowerCase() !== String(info.allTimeScope || "ALL_TIME").toLowerCase() && /^[a-zA-Z0-9_-]+$/.test(scope);
+  });
+  if (seasons.length === 0) {
+    return [];
+  }
+
+  const results = await Promise.all(seasons.map(async season => {
+    const scope = season.scope.trim();
+    const url = new URL("/leaderboard", base);
+    url.searchParams.set("eid", eid);
+    url.searchParams.set("scope", scope);
+    url.searchParams.set("grade", grade);
+
+    let response;
+    try {
+      response = await fetch(url, { cf: { cacheTtl: 0, mirage: false } });
+    } catch {
+      throw new Error(`Couldn't look up the ${season.name || scope} ranking. Please try again later.`);
+    }
+    if (!response.ok) {
+      throw new Error(`Seasonal leaderboard service returned HTTP ${response.status} for ${season.name || scope}.`);
+    }
+
+    const data = await response.json();
+    if (data.rank === undefined || data.rank === null || data.score === undefined || data.score === null) {
+      return null;
+    }
+    const rank = Number(data.rank);
+    if (!Number.isInteger(rank) || rank < 1 || typeof season.name !== "string" || !season.name.trim()) {
+      throw new Error(`The seasonal leaderboard service returned invalid ranking data for ${scope}.`);
+    }
+
+    return {
+      scope,
+      name: season.name.trim(),
+      rank: String(rank),
+      player: String(player),
+      score: String(data.score),
+      source: "submission"
+    };
+  }));
+
+  return results.filter(Boolean);
+}
+
+async function commitSeasonalEntriesToGitHub(entries, env) {
+  if (entries.length === 0) {
+    return;
+  }
+
+  const owner = env.GITHUB_OWNER;
+  const repo = env.GITHUB_REPO;
+  const branch = env.SEASONAL_GITHUB_BRANCH || env.GITHUB_BRANCH || "main";
+  const token = env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error("Server is misconfigured (missing GitHub token).");
+  }
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "User-Agent": "egg-leaderboard-submit-worker"
+  };
+
+  for (const entry of entries) {
+    const filePath = `data/seasonal/${entry.scope}.json`;
+    const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${encodeURIComponent(branch)}`;
+    const getResponse = await fetch(getUrl, { headers });
+    if (!getResponse.ok) {
+      throw new Error(`Couldn't read the ${entry.name} seasonal snapshot.`);
+    }
+
+    const fileData = await getResponse.json();
+    const decoded = new TextDecoder().decode(Uint8Array.from(atob(fileData.content.replace(/\n/g, "")), char => char.charCodeAt(0)));
+    const snapshot = JSON.parse(decoded);
+    if (snapshot.scope !== entry.scope || !Array.isArray(snapshot.entries)) {
+      throw new Error(`The ${entry.name} seasonal snapshot is invalid.`);
+    }
+
+    const existingIndex = snapshot.entries.findIndex(row =>
+      row.player && row.player.toLowerCase() === entry.player.toLowerCase()
+    );
+    const newRow = { rank: entry.rank, player: entry.player, score: entry.score, source: "submission" };
+    if (existingIndex >= 0) {
+      snapshot.entries[existingIndex] = newRow;
+    } else {
+      snapshot.entries.push(newRow);
+    }
+    snapshot.entries.sort((a, b) => Number(a.rank) - Number(b.rank));
+    snapshot.updatedAt = new Date().toISOString().slice(0, 10);
+
+    const content = btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(snapshot, null, 2))));
+    const putUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+    const putResponse = await fetch(putUrl, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: `chore: seasonal ranking submission for ${entry.scope}`,
+        content,
+        sha: fileData.sha,
+        branch
+      })
+    });
+    if (!putResponse.ok) {
+      throw new Error(`Couldn't save the ${entry.name} seasonal ranking. Please try again later.`);
+    }
+  }
 }
 
 // Upserts { rank, player, score, source: "submission" } into today's

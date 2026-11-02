@@ -20,6 +20,28 @@ function getSeasonScopes(info) {
     throw new Error("leaderboard_info returned an invalid season catalog.");
   }
 
+/** @param {LeaderboardEntry[]} apiEntries @param {SeasonSnapshot | null} existing */
+function mergeSubmittedEntries(apiEntries, existing) {
+  const apiNames = new Set(apiEntries.map(entry => entry.player.toLowerCase()));
+  const submittedEntries = (Array.isArray(existing?.entries) ? existing.entries : [])
+    .filter(entry =>
+      entry?.source === "submission" &&
+      typeof entry.player === "string" &&
+      !apiNames.has(entry.player.toLowerCase()) &&
+      Number.isInteger(Number(entry.rank)) && Number(entry.rank) > 0 &&
+      entry.score !== undefined && entry.score !== null
+    )
+    .map(entry => ({
+      rank: String(entry.rank),
+      player: entry.player,
+      score: String(entry.score),
+      source: "submission"
+    }));
+
+  return [...apiEntries, ...submittedEntries]
+    .sort((a, b) => Number(a.rank) - Number(b.rank));
+}
+
   const allTimeScope = info.allTimeScope.trim().toLowerCase();
   const seen = new Set();
   const seasons = info.seasonsList
@@ -109,6 +131,28 @@ function entriesSignature(entries) {
     player: String(player),
     score: String(score)
   })));
+}
+
+/** @param {LeaderboardEntry[]} apiEntries @param {SeasonSnapshot | null} existing */
+function mergeSubmittedEntries(apiEntries, existing) {
+  const apiNames = new Set(apiEntries.map(entry => entry.player.toLowerCase()));
+  const submittedEntries = (Array.isArray(existing?.entries) ? existing.entries : [])
+    .filter(entry =>
+      entry?.source === "submission" &&
+      typeof entry.player === "string" &&
+      !apiNames.has(entry.player.toLowerCase()) &&
+      Number.isInteger(Number(entry.rank)) && Number(entry.rank) > 0 &&
+      entry.score !== undefined && entry.score !== null
+    )
+    .map(entry => ({
+      rank: String(entry.rank),
+      player: entry.player,
+      score: String(entry.score),
+      source: "submission"
+    }));
+
+  return [...apiEntries, ...submittedEntries]
+    .sort((a, b) => Number(a.rank) - Number(b.rank));
 }
 
 /**
@@ -245,9 +289,10 @@ async function updateSeasonalArchive({
         leaderboardUrl.searchParams.set("grade", "5");
 
         const payload = await getJson(leaderboardUrl, fetchImpl);
-        const entries = normalizeEntries(payload, season.scope);
+        const apiEntries = normalizeEntries(payload, season.scope);
         const filePath = path.join(seasonalDir, `${season.scope}.json`);
         const existingSnapshot = await readJsonIfPresent(filePath);
+        const entries = mergeSubmittedEntries(apiEntries, existingSnapshot);
         const result = createSeasonSnapshot({
           ...season,
           entries,
@@ -306,6 +351,7 @@ async function main() {
 module.exports = {
   getSeasonScopes,
   normalizeEntries,
+  mergeSubmittedEntries,
   createSeasonSnapshot,
   updateSeasonalArchive
 };
