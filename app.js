@@ -966,6 +966,46 @@ function renderSeasonalRankChart(playerName, matches) {
     seasonalRankScaleZoomSelect.value = seasonalRankScaleZoom;
   }
 
+  const seasonalYearBoundaryPlugin = {
+    id: "seasonalYearBoundaryLines",
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      const xScale = chart.scales.x;
+      const yScale = chart.scales.y;
+      if (!xScale || !yScale || seasons.length < 2) return;
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(142, 157, 178, 0.3)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.font = "12px sans-serif";
+      ctx.fillStyle = "rgba(142, 157, 178, 0.6)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      seasons.forEach((season, index) => {
+        if (index === 0) return;
+
+        const year = season.name.match(/\b\d{4}\b/)?.[0];
+        const previousYear = seasons[index - 1].name.match(/\b\d{4}\b/)?.[0];
+        if (!year || year === previousYear) return;
+
+        const previousX = xScale.getPixelForValue(index - 1);
+        const currentX = xScale.getPixelForValue(index);
+        const boundaryX = (previousX + currentX) / 2;
+        if (boundaryX < xScale.left || boundaryX > xScale.right) return;
+
+        ctx.beginPath();
+        ctx.moveTo(boundaryX, yScale.top);
+        ctx.lineTo(boundaryX, yScale.bottom);
+        ctx.stroke();
+        ctx.fillText(year, boundaryX, yScale.top + 5);
+      });
+
+      ctx.restore();
+    }
+  };
+
   seasonalRankChart = new Chart(seasonalRankChartCanvas, {
     type: "line",
     data: {
@@ -987,6 +1027,7 @@ function renderSeasonalRankChart(playerName, matches) {
         fill: true
       }]
     },
+    plugins: [seasonalYearBoundaryPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -1018,7 +1059,7 @@ function renderSeasonalRankChart(playerName, matches) {
           grid: { display: false }
         },
         y: {
-          min: 1,
+          min: 0,
           max: rankAxisMax,
           reverse: true,
           ticks: {
@@ -1180,7 +1221,7 @@ function setLeaderboardView(showSeasonal) {
   seasonalViewButton.setAttribute("aria-pressed", String(showSeasonal));
   siteTitle.textContent = showSeasonal
     ? "Egg Inc Seasonal Leaderboards - Experimental"
-    : "Egg Inc All Time Leaderboard - Experimental";
+    : "Egg Inc All Time Leaderboard";
   siteSubtitle.textContent = showSeasonal
     ? "Explore recorded seasonal leaderboard rankings and player history!"
     : "Explore archived All Time leaderboard scores and rankings!";
