@@ -106,6 +106,8 @@ const seasonalSubmitLookupForm = document.getElementById("seasonal-submit-lookup
 const seasonalSubmitEidInput = document.getElementById("seasonal-submit-eid");
 const seasonalSubmitLookupButton = document.getElementById("seasonal-submit-lookup-button");
 const seasonalSaveEidCheckbox = document.getElementById("seasonal-save-eid-checkbox");
+const seasonalSavedEidsWrapper = document.getElementById("seasonal-saved-eids-wrapper");
+const seasonalSavedEidsList = document.getElementById("seasonal-saved-eids-list");
 const seasonalSubmitLookupSection = document.getElementById("seasonal-submit-lookup-section");
 const seasonalSubmitStatus = document.getElementById("seasonal-submit-status");
 const seasonalSubmitPreview = document.getElementById("seasonal-submit-preview");
@@ -1105,12 +1107,14 @@ function resetSeasonalSubmitModal() {
   resetSeasonalSubmitLookup();
   seasonalSubmitEidInput.value = "";
   seasonalSaveEidCheckbox.checked = true;
+  renderSeasonalSavedEids();
 }
 
 function closeSeasonalSubmitModal() {
   seasonalSubmitModal?.classList.add("hidden");
   cachedSeasonalSubmitResults = null;
   seasonalSubmitEidInput.value = "";
+  renderSeasonalSavedEids();
   if (seasonalSubmitChart) {
     seasonalSubmitChart.destroy();
     seasonalSubmitChart = null;
@@ -2328,6 +2332,7 @@ function addSavedEid(eid) {
 
   setSavedEids(eids);
   renderSavedEids();
+  renderSeasonalSavedEids();
 }
 
 function removeSavedEid(eid) {
@@ -2335,6 +2340,7 @@ function removeSavedEid(eid) {
   delete eids[eid];
   setSavedEids(eids);
   renderSavedEids();
+  renderSeasonalSavedEids();
 }
 
 function updateSavedEidUsername(eid, username) {
@@ -2345,6 +2351,7 @@ function updateSavedEidUsername(eid, username) {
   eids[eid] = { ...eids[eid], username };
   setSavedEids(eids);
   renderSavedEids();
+  renderSeasonalSavedEids();
 }
 
 function savedEidDisplayName(eid, entry) {
@@ -2386,6 +2393,7 @@ function renderSavedEids() {
       eids2[eid] = { ...eids2[eid], nickname: name || undefined };
       setSavedEids(eids2);
       renderSavedEids();
+      renderSeasonalSavedEids();
     });
 
     const nameSpan = document.createElement("span");
@@ -2395,6 +2403,7 @@ function renderSavedEids() {
     nameSpan.addEventListener("click", () => {
       submitEidInput.value = eid;
       renderSavedEids();
+      renderSeasonalSavedEids();
       submitEidInput.focus();
     });
 
@@ -2411,6 +2420,48 @@ function renderSavedEids() {
     pill.appendChild(nameSpan);
     pill.appendChild(removeButton);
     savedEidsList.appendChild(pill);
+  });
+}
+
+function renderSeasonalSavedEids() {
+  if (!seasonalSavedEidsWrapper || !seasonalSavedEidsList) return;
+
+  const entries = Object.entries(getSavedEids());
+  seasonalSavedEidsList.innerHTML = "";
+  if (entries.length === 0) {
+    seasonalSavedEidsWrapper.classList.add("hidden");
+    return;
+  }
+
+  seasonalSavedEidsWrapper.classList.remove("hidden");
+  entries.forEach(([eid, entry]) => {
+    const pill = document.createElement("span");
+    pill.className = "saved-eid-pill";
+    if (seasonalSubmitEidInput?.value.trim().toUpperCase() === eid) {
+      pill.classList.add("active");
+    }
+
+    const nameSpan = document.createElement("button");
+    nameSpan.type = "button";
+    nameSpan.className = "saved-eid-pill-name";
+    nameSpan.textContent = savedEidDisplayName(eid, entry);
+    nameSpan.title = eid;
+    nameSpan.addEventListener("click", () => {
+      seasonalSubmitEidInput.value = eid;
+      renderSavedEids();
+      renderSeasonalSavedEids();
+      seasonalSubmitEidInput.focus();
+    });
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "saved-eid-remove";
+    removeButton.setAttribute("aria-label", "Forget this ID");
+    removeButton.textContent = "\u00d7";
+    removeButton.addEventListener("click", () => removeSavedEid(eid));
+
+    pill.append(nameSpan, removeButton);
+    seasonalSavedEidsList.appendChild(pill);
   });
 }
 
@@ -2518,7 +2569,14 @@ if (submitModal) {
 }
 
 if (submitEidInput) {
-  submitEidInput.addEventListener("input", renderSavedEids);
+  submitEidInput.addEventListener("input", () => {
+    renderSavedEids();
+    renderSeasonalSavedEids();
+  });
+}
+
+if (seasonalSubmitEidInput) {
+  seasonalSubmitEidInput.addEventListener("input", renderSeasonalSavedEids);
 }
 
 if (submitLookupForm) {
