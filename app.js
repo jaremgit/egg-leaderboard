@@ -665,7 +665,7 @@ async function loadSeasonalSubmissions() {
 
 function renderSeasonButtons(seasons, selectedScope) {
   const seasonsByYear = new Map();
-  [...seasons, { name: "Winter 2023", scope: null, unavailable: true }].forEach(season => {
+  [{ name: "Winter 2023", scope: null, unavailable: true }, ...seasons].forEach(season => {
     const year = season.name.match(/\b\d{4}\b/)?.[0] ?? "Other seasons";
     if (!seasonsByYear.has(year)) {
       seasonsByYear.set(year, []);
