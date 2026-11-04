@@ -93,6 +93,7 @@ const seasonalLeaderboardBody = document.getElementById("seasonal-leaderboard-bo
 const seasonalPlayerSearch = document.getElementById("seasonal-player-search");
 const seasonalClearSearchButton = document.getElementById("seasonal-clear-search");
 const seasonalPlayerStatus = document.getElementById("seasonal-player-status");
+const seasonalOtherMatchesList = document.getElementById("seasonal-other-matches-list");
 const seasonalPlayerSummary = document.getElementById("seasonal-player-summary");
 const seasonalRankChartContainer = document.getElementById("seasonal-rank-chart-container");
 const seasonalRankChartCanvas = document.getElementById("seasonal-rank-chart");
@@ -779,6 +780,8 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
   seasonalPlayerSummary.classList.add("hidden");
   seasonalPlayerHistoryBody.innerHTML = "";
   seasonalPlayerHistoryWrapper.classList.add("hidden");
+  seasonalOtherMatchesList.innerHTML = "";
+  seasonalOtherMatchesList.classList.add("hidden");
 
   if (!searchTerm) {
     seasonalPlayerStatus.textContent = "";
@@ -870,8 +873,49 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
     seasonalPlayerHistoryBody.appendChild(row);
   });
 
-  seasonalPlayerStatus.textContent = `${matches.length} seasonal ranking${matches.length === 1 ? "" : "s"} found for ${focusedPlayer}.`;
+  const otherMatchingNames = matchingNames
+    .filter(name => name !== focusedPlayer)
+    .sort((a, b) => a.localeCompare(b));
+  seasonalPlayerStatus.innerHTML =
+    `${matches.length} seasonal ranking${matches.length === 1 ? "" : "s"} found for ${escapeHtml(focusedPlayer)}` +
+    (otherMatchingNames.length > 0
+      ? ` · <span id="seasonal-other-matches-toggle" class="other-matches-toggle" role="button" tabindex="0">` +
+        `${otherMatchingNames.length} other matching player${otherMatchingNames.length === 1 ? "" : "s"}</span>`
+      : "");
+  const otherMatchesToggle = document.getElementById("seasonal-other-matches-toggle");
+  if (otherMatchesToggle) {
+    const showOtherMatches = () => renderSeasonalOtherMatchesList(otherMatchingNames);
+    otherMatchesToggle.addEventListener("click", showOtherMatches);
+    otherMatchesToggle.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        showOtherMatches();
+      }
+    });
+  }
   seasonalPlayerHistoryWrapper.classList.remove("hidden");
+}
+
+function renderSeasonalOtherMatchesList(names) {
+  const isCurrentlyVisible = !seasonalOtherMatchesList.classList.contains("hidden");
+  seasonalOtherMatchesList.innerHTML = "";
+  if (isCurrentlyVisible) {
+    seasonalOtherMatchesList.classList.add("hidden");
+    return;
+  }
+
+  names.forEach(name => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "other-matches-item";
+    item.textContent = name;
+    item.addEventListener("click", () => {
+      seasonalPlayerSearch.value = name;
+      searchSeasonalPlayer(name);
+    });
+    seasonalOtherMatchesList.appendChild(item);
+  });
+  seasonalOtherMatchesList.classList.remove("hidden");
 }
 
 function renderSeasonalRankChart(playerName, matches) {
