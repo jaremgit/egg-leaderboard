@@ -320,13 +320,15 @@
               <p class="eyebrow">Seasonal progression</p>
               <h3>Rank by season</h3>
             </div>
-            <select id="seasonal-rank-scale-zoom" class="rank-scale-zoom" aria-label="Seasonal rank chart scale">
-              <option value="default">All recorded ranks</option>
-              <option value="0-100">Top 100</option>
-              <option value="0-50">Top 50</option>
-              <option value="0-25">Top 25</option>
-              <option value="0-10">Top 10</option>
-            </select>
+            <div class="chart-controls">
+              <select id="seasonal-rank-scale-zoom" class="rank-scale-zoom" aria-label="Seasonal rank chart scale">
+                <option value="default">All recorded ranks</option>
+                <option value="0-10">Top 10</option>
+                <option value="0-25">Top 25</option>
+                <option value="0-50">Top 50</option>
+                <option value="0-100">Top 100</option>
+              </select>
+            </div>
           </div>
           <div class="chart-wrapper">
             <canvas id="seasonal-rank-chart" role="img" aria-label="Seasonal rank history chart"></canvas>
