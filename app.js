@@ -665,7 +665,7 @@ async function loadSeasonalSubmissions() {
 
 function renderSeasonButtons(seasons, selectedScope) {
   const seasonsByYear = new Map();
-  seasons.forEach(season => {
+  [...seasons, { name: "Winter 2023", scope: null, unavailable: true }].forEach(season => {
     const year = season.name.match(/\b\d{4}\b/)?.[0] ?? "Other seasons";
     if (!seasonsByYear.has(year)) {
       seasonsByYear.set(year, []);
@@ -689,6 +689,11 @@ function renderSeasonButtons(seasons, selectedScope) {
       button.type = "button";
       button.className = "season-button";
       button.textContent = season.name.replace(new RegExp(`\\s*${year}$`), "");
+      if (season.unavailable) {
+        button.disabled = true;
+        button.classList.add("unavailable");
+        button.setAttribute("aria-label", `${season.name}, leaderboard unavailable`);
+      }
       button.setAttribute("aria-pressed", String(season.scope === selectedScope));
       if (season.scope === selectedScope) {
         button.classList.add("active");
@@ -698,6 +703,7 @@ function renderSeasonButtons(seasons, selectedScope) {
         button.setAttribute("aria-label", `${season.name}, current season`);
       }
       button.addEventListener("click", () => {
+        if (season.unavailable) return;
         seasonalSeasonButtons.querySelectorAll(".season-button").forEach(seasonButton => {
           const isSelected = seasonButton === button;
           seasonButton.classList.toggle("active", isSelected);

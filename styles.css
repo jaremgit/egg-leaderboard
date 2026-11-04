@@ -287,6 +287,15 @@ main {
   color: var(--notice-text);
 }
 
+.season-button.unavailable,
+.season-button.unavailable:hover {
+  border-color: var(--border-light);
+  background: transparent;
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 /* Floating "Date format" toggle - fixed to the viewport so it stays visible
    while scrolling. Uses clamp() for its position/sizing so it shrinks and
    moves slightly inward automatically on small screens instead of needing
