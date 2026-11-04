@@ -85,7 +85,7 @@ const seasonalView = document.getElementById("seasonal-view");
 const siteTitle = document.getElementById("site-title");
 const siteSubtitle = document.getElementById("site-subtitle");
 const dateFormatFloater = document.getElementById("date-format-floater");
-const seasonalSeasonSelect = document.getElementById("seasonal-season-select");
+const seasonalSeasonButtons = document.getElementById("seasonal-season-buttons");
 const seasonalSelectedSeason = document.getElementById("seasonal-selected-season");
 const seasonalStatus = document.getElementById("seasonal-status");
 const seasonalLeaderboardBody = document.getElementById("seasonal-leaderboard-body");
@@ -572,8 +572,7 @@ async function loadSeasonalLeaderboards() {
 
     seasonalCatalog = { ...catalog, seasons };
     if (seasons.length === 0) {
-      seasonalSeasonSelect.innerHTML = "<option value=\"\">No seasons available</option>";
-      seasonalSeasonSelect.disabled = true;
+      seasonalSeasonButtons.innerHTML = "<p class=\"status\">No seasons available</p>";
       seasonalSelectedSeason.textContent = "No seasons available";
       seasonalLeaderboardBody.innerHTML = "";
       seasonalStatus.textContent = "Seasonal data will appear after the archive's first successful update.";
@@ -600,19 +599,10 @@ async function loadSeasonalLeaderboards() {
     }));
 
     seasonalLeaderboards = loadedSeasons;
-    seasonalSeasonSelect.innerHTML = "";
-    loadedSeasons.forEach(season => {
-      const option = document.createElement("option");
-      option.value = season.scope;
-      option.textContent = `${season.name}${season.scope === catalog.currentScope ? " (Current)" : ""}`;
-      seasonalSeasonSelect.appendChild(option);
-    });
-
     const selectedScope = loadedSeasons.some(season => season.scope === catalog.currentScope)
       ? catalog.currentScope
       : loadedSeasons[loadedSeasons.length - 1].scope;
-    seasonalSeasonSelect.value = selectedScope;
-    seasonalSeasonSelect.disabled = false;
+    renderSeasonButtons(loadedSeasons, selectedScope);
     renderSeasonalLeaderboard(selectedScope);
     if (seasonalPlayerSearch.value.trim()) {
       searchSeasonalPlayer(seasonalPlayerSearch.value);
@@ -625,11 +615,61 @@ async function loadSeasonalLeaderboards() {
   } catch (error) {
     seasonalStatus.textContent = `Could not load seasonal data: ${error.message}`;
     seasonalSelectedSeason.textContent = "Seasonal archive unavailable";
-    seasonalSeasonSelect.disabled = true;
+    seasonalSeasonButtons.innerHTML = "<p class=\"status\">Seasonal archive unavailable</p>";
     seasonalDataLoaded = false;
   } finally {
     seasonalDataLoading = null;
   }
+}
+
+function renderSeasonButtons(seasons, selectedScope) {
+  const seasonsByYear = new Map();
+  seasons.forEach(season => {
+    const year = season.name.match(/\b\d{4}\b/)?.[0] ?? "Other seasons";
+    if (!seasonsByYear.has(year)) {
+      seasonsByYear.set(year, []);
+    }
+    seasonsByYear.get(year).push(season);
+  });
+
+  seasonalSeasonButtons.innerHTML = "";
+  seasonsByYear.forEach((yearSeasons, year) => {
+    const yearGroup = document.createElement("section");
+    yearGroup.className = "season-year-group";
+
+    const heading = document.createElement("h3");
+    heading.className = "season-year-heading";
+    heading.textContent = year;
+
+    const buttonGrid = document.createElement("div");
+    buttonGrid.className = "season-button-grid";
+    yearSeasons.forEach(season => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "season-button";
+      button.textContent = season.name.replace(new RegExp(`\\s*${year}$`), "");
+      button.setAttribute("aria-pressed", String(season.scope === selectedScope));
+      if (season.scope === selectedScope) {
+        button.classList.add("active");
+      }
+      if (season.scope === seasonalCatalog?.currentScope) {
+        button.classList.add("current");
+        button.setAttribute("aria-label", `${season.name}, current season`);
+      }
+      button.addEventListener("click", () => {
+        seasonalSeasonButtons.querySelectorAll(".season-button").forEach(seasonButton => {
+          const isSelected = seasonButton === button;
+          seasonButton.classList.toggle("active", isSelected);
+          seasonButton.setAttribute("aria-pressed", String(isSelected));
+        });
+        renderSeasonalLeaderboard(season.scope);
+      });
+      buttonGrid.appendChild(button);
+    });
+
+    yearGroup.append(heading, buttonGrid);
+    seasonalSeasonButtons.appendChild(yearGroup);
+  });
 }
 
 function renderSeasonalLeaderboard(scope) {

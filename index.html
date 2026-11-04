@@ -323,12 +323,14 @@
       </section>
 
       <section id="seasonal-controls-card" class="controls-card">
-        <div class="date-control">
-          <p class="eyebrow">Season</p>
-          <label for="seasonal-season-select">Seasonal leaderboard</label>
-          <select id="seasonal-season-select" disabled>
-            <option>Loading seasons...</option>
-          </select>
+        <div class="season-picker">
+          <div>
+            <p class="eyebrow">Season</p>
+            <h2 class="season-picker-title">Choose a seasonal leaderboard</h2>
+          </div>
+          <div id="seasonal-season-buttons" class="season-year-grid" aria-label="Seasonal leaderboards">
+            <p class="status">Loading seasons...</p>
+          </div>
         </div>
       </section>
 
