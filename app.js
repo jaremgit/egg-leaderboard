@@ -98,6 +98,9 @@ const seasonalRankChartContainer = document.getElementById("seasonal-rank-chart-
 const seasonalRankChartCanvas = document.getElementById("seasonal-rank-chart");
 const seasonalPlayerHistoryWrapper = document.getElementById("seasonal-player-history-wrapper");
 const seasonalPlayerHistoryBody = document.getElementById("seasonal-player-history-body");
+const seasonalSubmitScoreButton = document.getElementById("seasonal-submit-score-button");
+const seasonalSubmitModal = document.getElementById("seasonal-submit-modal");
+const closeSeasonalSubmitModalButton = document.getElementById("close-seasonal-submit-modal");
 
 const disclaimerModal = document.getElementById("disclaimer-modal");
 const closeDisclaimerModalButton = document.getElementById("close-disclaimer-modal");
@@ -1869,6 +1872,26 @@ seasonalClearSearchButton.addEventListener("click", () => {
   seasonalPlayerSearch.value = "";
   searchSeasonalPlayer("");
 });
+
+if (seasonalSubmitScoreButton) {
+  seasonalSubmitScoreButton.addEventListener("click", () => {
+    seasonalSubmitModal?.classList.remove("hidden");
+  });
+}
+
+if (closeSeasonalSubmitModalButton) {
+  closeSeasonalSubmitModalButton.addEventListener("click", () => {
+    seasonalSubmitModal?.classList.add("hidden");
+  });
+}
+
+if (seasonalSubmitModal) {
+  seasonalSubmitModal.addEventListener("click", event => {
+    if (event.target.classList.contains("modal-backdrop")) {
+      seasonalSubmitModal.classList.add("hidden");
+    }
+  });
+}
 
 previousButton.addEventListener("click", () => {
   if (currentDateIndex > 0) {

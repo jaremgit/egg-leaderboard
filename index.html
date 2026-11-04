@@ -306,20 +306,9 @@
               Look up your current seasonal details and optionally add your ranking to this archive!
             </p>
 
-            <div class="submit-controls">
-              <label for="seasonal-submit-eid">EggInc ID</label>
-              <input
-                id="seasonal-submit-eid"
-                type="text"
-                placeholder="EI0000000000000000"
-                autocomplete="off"
-              >
-              <button id="seasonal-submit-lookup-button" type="button">Look up</button>
+            <div class="submit-score-row">
+              <button id="seasonal-submit-score-button" type="button">🏆 Submit Your Seasonal Score</button>
             </div>
-            <label class="save-eid-checkbox-label" for="seasonal-save-eid-checkbox">
-              <input id="seasonal-save-eid-checkbox" type="checkbox" checked>
-              Remember this ID on this device
-            </label>
           </div>
         </div>
 
@@ -390,6 +379,38 @@
       </section>
     </div>
   </main>
+
+  <div id="seasonal-submit-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content submit-modal-content">
+      <div class="modal-header">
+        <h2>Submit your seasonal ranking</h2>
+        <button id="close-seasonal-submit-modal" class="modal-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="submit-help">
+          Enter your Egg Inc ID to look up your current seasonal details. Your seasonal lookup will be separate from the All Time lookup.
+        </p>
+        <p class="submit-help">
+          Your ID can optionally be remembered in this browser (only on this device).
+        </p>
+        <div class="submit-controls">
+          <label for="seasonal-submit-eid">EggInc ID</label>
+          <input
+            id="seasonal-submit-eid"
+            type="text"
+            placeholder="EI0000000000000000"
+            autocomplete="off"
+          >
+          <button id="seasonal-submit-lookup-button" type="button">Look up</button>
+        </div>
+        <label class="save-eid-checkbox-label" for="seasonal-save-eid-checkbox">
+          <input id="seasonal-save-eid-checkbox" type="checkbox" checked>
+          Remember this ID on this device
+        </label>
+      </div>
+    </div>
+  </div>
 
   <!-- Submit Score Modal -->
   <div id="submit-modal" class="modal hidden">
