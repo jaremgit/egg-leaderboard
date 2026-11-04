@@ -1195,6 +1195,25 @@ tbody tr:hover {
   margin-bottom: 16px;
 }
 
+.seasonal-chart-heading {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+}
+
+.seasonal-chart-heading > :first-child {
+  grid-column: 1;
+}
+
+.seasonal-chart-heading .chart-controls {
+  grid-column: 2;
+}
+
+.seasonal-chart-heading::after {
+  content: "";
+  grid-column: 3;
+}
+
 .chart-heading h3 {
   margin: 0;
   color: var(--text);
@@ -1215,6 +1234,10 @@ tbody tr:hover {
     align-items: stretch;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .seasonal-chart-heading {
+    display: flex;
   }
 
   .chart-wrapper {
