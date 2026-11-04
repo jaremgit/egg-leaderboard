@@ -1,4 +1,109 @@
 {
-  "updatedAt": null,
-  "entries": []
+  "updatedAt": "2026-11-04",
+  "entries": [
+    {
+      "scope": "fall_2024",
+      "seasonName": "Fall 2024",
+      "rank": "733",
+      "player": "j3arem",
+      "score": "689328",
+      "source": "submission"
+    },
+    {
+      "scope": "fall_2025",
+      "seasonName": "Fall 2025",
+      "rank": "2890",
+      "player": "j3arem",
+      "score": "727831",
+      "source": "submission"
+    },
+    {
+      "scope": "fall_2026",
+      "seasonName": "Fall 2026",
+      "rank": "378",
+      "player": "j3arem",
+      "score": "484711",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2023",
+      "seasonName": "Spring 2023",
+      "rank": "9123",
+      "player": "j3arem",
+      "score": "118444",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2024",
+      "seasonName": "Spring 2024",
+      "rank": "32806",
+      "player": "j3arem",
+      "score": "69218",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2025",
+      "seasonName": "Spring 2025",
+      "rank": "490",
+      "player": "j3arem",
+      "score": "841550",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2026",
+      "seasonName": "Spring 2026",
+      "rank": "312",
+      "player": "j3arem",
+      "score": "930685",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2023",
+      "seasonName": "Summer 2023",
+      "rank": "37162",
+      "player": "j3arem",
+      "score": "36164",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2024",
+      "seasonName": "Summer 2024",
+      "rank": "722",
+      "player": "j3arem",
+      "score": "709505",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2025",
+      "seasonName": "Summer 2025",
+      "rank": "489",
+      "player": "j3arem",
+      "score": "872535",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2026",
+      "seasonName": "Summer 2026",
+      "rank": "298",
+      "player": "j3arem",
+      "score": "1002079",
+      "source": "submission"
+    },
+    {
+      "scope": "winter_2025",
+      "seasonName": "Winter 2025",
+      "rank": "516",
+      "player": "j3arem",
+      "score": "826612",
+      "source": "submission"
+    },
+    {
+      "scope": "winter_2026",
+      "seasonName": "Winter 2026",
+      "rank": "348",
+      "player": "j3arem",
+      "score": "920307",
+      "source": "submission"
+    }
+  ]
 }
