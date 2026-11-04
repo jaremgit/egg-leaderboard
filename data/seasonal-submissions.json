@@ -66,11 +66,27 @@
       "source": "submission"
     },
     {
+      "scope": "fall_2025",
+      "seasonName": "Fall 2025",
+      "rank": "9998",
+      "player": "j4arem",
+      "score": "507842",
+      "source": "submission"
+    },
+    {
       "scope": "fall_2026",
       "seasonName": "Fall 2026",
       "rank": "378",
       "player": "j3arem",
       "score": "484711",
+      "source": "submission"
+    },
+    {
+      "scope": "fall_2026",
+      "seasonName": "Fall 2026",
+      "rank": "551",
+      "player": "j4arem",
+      "score": "475692",
       "source": "submission"
     },
     {
@@ -111,6 +127,14 @@
       "rank": "9123",
       "player": "j3arem",
       "score": "118444",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2023",
+      "seasonName": "Spring 2023",
+      "rank": "9715",
+      "player": "j4arem",
+      "score": "114514",
       "source": "submission"
     },
     {
@@ -186,6 +210,14 @@
       "source": "submission"
     },
     {
+      "scope": "spring_2026",
+      "seasonName": "Spring 2026",
+      "rank": "401",
+      "player": "j4arem",
+      "score": "916691",
+      "source": "submission"
+    },
+    {
       "scope": "summer_2023",
       "seasonName": "Summer 2023",
       "rank": "375",
@@ -207,6 +239,14 @@
       "rank": "37162",
       "player": "j3arem",
       "score": "36164",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2023",
+      "seasonName": "Summer 2023",
+      "rank": "37448",
+      "player": "j4arem",
+      "score": "35177",
       "source": "submission"
     },
     {
@@ -258,6 +298,14 @@
       "source": "submission"
     },
     {
+      "scope": "summer_2025",
+      "seasonName": "Summer 2025",
+      "rank": "37537",
+      "player": "j4arem",
+      "score": "59987",
+      "source": "submission"
+    },
+    {
       "scope": "summer_2026",
       "seasonName": "Summer 2026",
       "rank": "34",
@@ -279,6 +327,14 @@
       "rank": "298",
       "player": "j3arem",
       "score": "1002079",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2026",
+      "seasonName": "Summer 2026",
+      "rank": "342",
+      "player": "j4arem",
+      "score": "995527",
       "source": "submission"
     },
     {
@@ -343,6 +399,14 @@
       "rank": "348",
       "player": "j3arem",
       "score": "920307",
+      "source": "submission"
+    },
+    {
+      "scope": "winter_2026",
+      "seasonName": "Winter 2026",
+      "rank": "455",
+      "player": "j4arem",
+      "score": "902980",
       "source": "submission"
     }
   ]
