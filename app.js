@@ -78,6 +78,47 @@ const timeRangeZoomSelect =
 const dataFilterSelect =
   document.getElementById("data-filter-select");
 
+const allTimeViewButton = document.getElementById("all-time-view-button");
+const seasonalViewButton = document.getElementById("seasonal-view-button");
+const allTimeView = document.getElementById("all-time-view");
+const seasonalView = document.getElementById("seasonal-view");
+const siteTitle = document.getElementById("site-title");
+const siteSubtitle = document.getElementById("site-subtitle");
+const dateFormatFloater = document.getElementById("date-format-floater");
+const dateFormatRow = document.getElementById("date-format-row");
+const seasonalSeasonButtons = document.getElementById("seasonal-season-buttons");
+const seasonalSelectedSeason = document.getElementById("seasonal-selected-season");
+const seasonalStatus = document.getElementById("seasonal-status");
+const seasonalLeaderboardBody = document.getElementById("seasonal-leaderboard-body");
+const seasonalPlayerSearch = document.getElementById("seasonal-player-search");
+const seasonalClearSearchButton = document.getElementById("seasonal-clear-search");
+const seasonalPlayerStatus = document.getElementById("seasonal-player-status");
+const seasonalOtherMatchesList = document.getElementById("seasonal-other-matches-list");
+const seasonalPlayerSummary = document.getElementById("seasonal-player-summary");
+const seasonalRankChartContainer = document.getElementById("seasonal-rank-chart-container");
+const seasonalRankChartCanvas = document.getElementById("seasonal-rank-chart");
+const seasonalRankScaleZoomSelect = document.getElementById("seasonal-rank-scale-zoom");
+const seasonalPlayerHistoryWrapper = document.getElementById("seasonal-player-history-wrapper");
+const seasonalPlayerHistoryBody = document.getElementById("seasonal-player-history-body");
+const seasonalSubmitScoreButton = document.getElementById("seasonal-submit-score-button");
+const seasonalSubmitModal = document.getElementById("seasonal-submit-modal");
+const closeSeasonalSubmitModalButton = document.getElementById("close-seasonal-submit-modal");
+const seasonalSubmitLookupForm = document.getElementById("seasonal-submit-lookup-form");
+const seasonalSubmitEidInput = document.getElementById("seasonal-submit-eid");
+const seasonalSubmitLookupButton = document.getElementById("seasonal-submit-lookup-button");
+const seasonalSaveEidCheckbox = document.getElementById("seasonal-save-eid-checkbox");
+const seasonalSavedEidsWrapper = document.getElementById("seasonal-saved-eids-wrapper");
+const seasonalSavedEidsList = document.getElementById("seasonal-saved-eids-list");
+const seasonalSubmitLookupSection = document.getElementById("seasonal-submit-lookup-section");
+const seasonalSubmitStatus = document.getElementById("seasonal-submit-status");
+const seasonalSubmitPreview = document.getElementById("seasonal-submit-preview");
+const seasonalSubmitPlayer = document.getElementById("seasonal-submit-player");
+const seasonalSubmitResults = document.getElementById("seasonal-submit-results");
+const seasonalSubmitChartCanvas = document.getElementById("seasonal-submit-chart");
+const seasonalSubmitConfirmButton = document.getElementById("seasonal-submit-confirm-button");
+const seasonalSubmitAgainButton = document.getElementById("seasonal-submit-again-button");
+const seasonalSubmitCancelButton = document.getElementById("seasonal-submit-cancel-button");
+
 const disclaimerModal = document.getElementById("disclaimer-modal");
 const closeDisclaimerModalButton = document.getElementById("close-disclaimer-modal");
 const disclaimerCloseButton = document.getElementById("disclaimer-close-button");
@@ -240,17 +281,29 @@ let availableDates = [];       // every ISO date (YYYY-MM-DD) that has data
 let currentDateIndex = -1;     // index into availableDates for the shown date
 let allLeaderboards = [];      // every leaderboard, preloaded for search
 let scoreChart = null;         // the active Chart.js instance (or null)
+let seasonalRankChart = null;
 let chartMode = "score";       // "score" or "rank" - which chart is shown
 let rankScaleZoom = "default"; // y-axis zoom preset for the rank chart
 let timeRangeZoom = "all";     // x-axis time zoom preset: "all", "1y", "6m", "3m", "1m"
 let dateEntryCountMap = {};    // date -> number of entries (used by heatmap)
 let dataFilterMode = "raw";    // "raw" | "weekly" | "weekly-peak" | "monthly" | "monthly-peak"
+let seasonalCatalog = null;
+let seasonalLeaderboards = [];
+let seasonalSubmissions = [];
+let currentSeasonalScope = null;
+let seasonalDataLoaded = false;
+let seasonalDataLoading = null;
+let cachedSeasonalSubmitResults = null;
+let seasonalSubmitChart = null;
+let seasonalRankScaleZoom = "default";
 
-// URL of the Cloudflare Worker that privately looks up a submitted EggInc ID
-// and publishes just the resulting name/rank/score (see worker/README.md
+// URLs for the Cloudflare Worker submission endpoints. All Time rank lookups
+// are fetched in the browser; the Worker validates, rate-limits, and publishes
+// the resulting public data (see worker/README.md
 // for how to deploy your own and get this URL). Leave as-is if you haven't
 // deployed the Worker yet - the submission form will just show an error.
 const SUBMIT_WORKER_URL = "https://egg-leaderboard-submit.jarem.workers.dev/submit";
+const SEASONAL_SUBMIT_WORKER_URL = "https://egg-leaderboard-submit.jarem.workers.dev/submit-seasonal";
 
 // Store pre-fetched player data from the lookup phase so we can use it in confirm
 let cachedSubmitData = null;
@@ -517,6 +570,624 @@ async function loadAllLeaderboards() {
   );
 
   allLeaderboards = results;
+}
+
+async function loadSeasonalLeaderboards() {
+  if (seasonalDataLoaded) {
+    return;
+  }
+  if (seasonalDataLoading) {
+    return seasonalDataLoading;
+  }
+
+  seasonalStatus.textContent = "Loading seasonal archive...";
+  seasonalDataLoading = (async () => {
+    const response = await fetch("data/seasonal/index.json");
+    if (!response.ok) {
+      throw new Error("Could not load the seasonal archive index.");
+    }
+
+    const catalog = await response.json();
+    if (!catalog || !Array.isArray(catalog.seasons)) {
+      throw new Error("The seasonal archive index is invalid.");
+    }
+
+    const seasons = catalog.seasons.filter(season =>
+      season && typeof season.scope === "string" &&
+      /^[a-zA-Z0-9_-]+$/.test(season.scope) &&
+      typeof season.name === "string"
+    );
+
+    seasonalCatalog = { ...catalog, seasons };
+    if (seasons.length === 0) {
+      seasonalSeasonButtons.innerHTML = "<p class=\"status\">No seasons available</p>";
+      seasonalSelectedSeason.textContent = "No seasons available";
+      seasonalLeaderboardBody.innerHTML = "";
+      seasonalStatus.textContent = "Seasonal data will appear after the archive's first successful update.";
+      seasonalPlayerStatus.textContent = "No seasonal snapshots are available yet.";
+      return;
+    }
+
+    const loadedSeasons = await Promise.all(seasons.map(async season => {
+      const snapshotResponse = await fetch(`data/seasonal/${encodeURIComponent(season.scope)}.json`);
+      if (!snapshotResponse.ok) {
+        throw new Error(`Could not load the ${season.name} snapshot.`);
+      }
+
+      const snapshot = await snapshotResponse.json();
+      if (snapshot.scope !== season.scope || !Array.isArray(snapshot.entries)) {
+        throw new Error(`The ${season.name} snapshot is invalid.`);
+      }
+
+      return {
+        ...season,
+        updatedAt: snapshot.updatedAt,
+        entries: snapshot.entries
+      };
+    }));
+
+    seasonalLeaderboards = loadedSeasons;
+    await loadSeasonalSubmissions();
+    const selectedScope = loadedSeasons.some(season => season.scope === catalog.currentScope)
+      ? catalog.currentScope
+      : loadedSeasons[loadedSeasons.length - 1].scope;
+    renderSeasonButtons(loadedSeasons, selectedScope);
+    renderSeasonalLeaderboard(selectedScope);
+    if (seasonalPlayerSearch.value.trim()) {
+      searchSeasonalPlayer(seasonalPlayerSearch.value);
+    }
+  })();
+
+  try {
+    await seasonalDataLoading;
+    seasonalDataLoaded = true;
+  } catch (error) {
+    seasonalStatus.textContent = `Could not load seasonal data: ${error.message}`;
+    seasonalSelectedSeason.textContent = "Seasonal archive unavailable";
+    seasonalSeasonButtons.innerHTML = "<p class=\"status\">Seasonal archive unavailable</p>";
+    seasonalDataLoaded = false;
+  } finally {
+    seasonalDataLoading = null;
+  }
+}
+
+async function loadSeasonalSubmissions() {
+  try {
+    const response = await fetch("data/seasonal-submissions.json");
+    if (response.status === 404) {
+      seasonalSubmissions = [];
+      return;
+    }
+    if (!response.ok) {
+      throw new Error("Could not load seasonal submissions.");
+    }
+    const archive = await response.json();
+    seasonalSubmissions = Array.isArray(archive.entries) ? archive.entries : [];
+  } catch (error) {
+    console.error("Failed to load seasonal submissions:", error);
+    seasonalSubmissions = [];
+  }
+}
+
+function renderSeasonButtons(seasons, selectedScope) {
+  const seasonsByYear = new Map();
+  [{ name: "Winter 2023", scope: null, unavailable: true }, ...seasons].forEach(season => {
+    const year = season.name.match(/\b\d{4}\b/)?.[0] ?? "Other seasons";
+    if (!seasonsByYear.has(year)) {
+      seasonsByYear.set(year, []);
+    }
+    seasonsByYear.get(year).push(season);
+  });
+
+  seasonalSeasonButtons.innerHTML = "";
+  seasonsByYear.forEach((yearSeasons, year) => {
+    const yearGroup = document.createElement("section");
+    yearGroup.className = "season-year-group";
+
+    const heading = document.createElement("h3");
+    heading.className = "season-year-heading";
+    heading.textContent = year;
+
+    const buttonGrid = document.createElement("div");
+    buttonGrid.className = "season-button-grid";
+    yearSeasons.forEach(season => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "season-button";
+      button.textContent = season.name.replace(new RegExp(`\\s*${year}$`), "");
+      if (season.unavailable) {
+        button.disabled = true;
+        button.classList.add("unavailable");
+        button.setAttribute("aria-label", `${season.name}, leaderboard unavailable`);
+      }
+      button.setAttribute("aria-pressed", String(season.scope === selectedScope));
+      if (season.scope === selectedScope) {
+        button.classList.add("active");
+      }
+      if (season.scope === seasonalCatalog?.currentScope) {
+        button.classList.add("current");
+        button.setAttribute("aria-label", `${season.name}, current season`);
+      }
+      button.addEventListener("click", () => {
+        if (season.unavailable) return;
+        seasonalSeasonButtons.querySelectorAll(".season-button").forEach(seasonButton => {
+          const isSelected = seasonButton === button;
+          seasonButton.classList.toggle("active", isSelected);
+          seasonButton.setAttribute("aria-pressed", String(isSelected));
+        });
+        renderSeasonalLeaderboard(season.scope);
+      });
+      buttonGrid.appendChild(button);
+    });
+
+    yearGroup.append(heading, buttonGrid);
+    seasonalSeasonButtons.appendChild(yearGroup);
+  });
+}
+
+function renderSeasonalLeaderboard(scope) {
+  currentSeasonalScope = scope;
+  const season = seasonalLeaderboards.find(item => item.scope === scope);
+  seasonalLeaderboardBody.innerHTML = "";
+
+  if (!season) {
+    seasonalSelectedSeason.textContent = "No season selected";
+    seasonalStatus.textContent = "Choose an available season.";
+    return;
+  }
+
+  const isCurrent = seasonalCatalog?.currentScope === season.scope;
+  seasonalSelectedSeason.textContent = `${season.name}${isCurrent ? " (Current)" : ""}`;
+  const updatedLabel = season.updatedAt ? ` · Last changed ${season.updatedAt}` : "";
+  const combinedEntries = getSeasonalEntries(season);
+  seasonalStatus.textContent = `${combinedEntries.length} observed entries${updatedLabel}`;
+  const firstPlaceScore = getSeasonalEntries(season).find(entry => Number(entry.rank) === 1)?.score;
+
+  [...combinedEntries]
+    .sort((a, b) => Number(a.rank) - Number(b.rank))
+    .forEach(entry => {
+      const displayName = normalizePlayerName(entry.player);
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${formatRank(entry.rank)}</td>
+        <td class="player-name-cell" tabindex="0" role="button">${escapeHtml(displayName)}</td>
+        <td>${formatScore(entry.score)}</td>
+        <td>${formatSeasonalScoreGap(entry.score, firstPlaceScore)}</td>
+      `;
+
+      const nameCell = row.querySelector(".player-name-cell");
+      nameCell.addEventListener("click", () => selectSeasonalPlayer(displayName));
+      nameCell.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectSeasonalPlayer(displayName);
+        }
+      });
+      seasonalLeaderboardBody.appendChild(row);
+    });
+}
+
+function getSeasonalEntries(season) {
+  const canonicalPlayers = new Set(
+    season.entries.map(entry => resolvePlayerName(entry.player).toLowerCase())
+  );
+  const supplementalEntries = seasonalSubmissions
+    .filter(entry => entry.scope === season.scope)
+    .filter(entry => !canonicalPlayers.has(resolvePlayerName(entry.player).toLowerCase()))
+    .map(entry => ({ ...entry, seasonName: season.name }));
+  return [...season.entries, ...supplementalEntries];
+}
+
+function formatSeasonalScoreGap(score, firstPlaceScore) {
+  const playerScore = Number(String(score).replaceAll(",", "").trim());
+  const numericFirstPlaceScore = Number(String(firstPlaceScore ?? "").replaceAll(",", "").trim());
+  const gap = Number.isFinite(playerScore) && Number.isFinite(numericFirstPlaceScore)
+    ? Math.max(0, numericFirstPlaceScore - playerScore)
+    : null;
+
+  return gap === null ? "—" : formatScore(gap);
+}
+
+function selectSeasonalPlayer(playerName) {
+  seasonalPlayerSearch.value = playerName;
+  searchSeasonalPlayer(playerName);
+  scrollToElementById("seasonal-search-card");
+}
+
+function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
+  hideSeasonalRankChart();
+  const searchTerm = searchValue.trim().toLowerCase();
+  seasonalPlayerSummary.innerHTML = "";
+  seasonalPlayerSummary.classList.add("hidden");
+  seasonalPlayerHistoryBody.innerHTML = "";
+  seasonalPlayerHistoryWrapper.classList.add("hidden");
+  seasonalOtherMatchesList.innerHTML = "";
+  seasonalOtherMatchesList.classList.add("hidden");
+
+  if (!searchTerm) {
+    seasonalPlayerStatus.textContent = "";
+    return;
+  }
+  if (seasonalLeaderboards.length === 0) {
+    seasonalPlayerStatus.textContent = "No seasonal leaderboard data is loaded.";
+    return;
+  }
+
+  const allEntries = seasonalLeaderboards.flatMap((season, seasonIndex) => {
+    return getSeasonalEntries(season).map(entry => ({
+      ...entry,
+      scope: season.scope,
+      seasonName: season.name,
+      seasonIndex
+    }));
+  });
+  const matchingNames = [
+    ...new Set(
+      allEntries
+        .filter(entry =>
+          entry.player.toLowerCase().includes(searchTerm) ||
+          resolvePlayerName(entry.player).toLowerCase().includes(searchTerm)
+        )
+        .map(entry => resolvePlayerName(entry.player))
+    )
+  ];
+
+  if (matchingNames.length === 0) {
+    seasonalPlayerStatus.textContent = "No matching players found in the seasonal top-100 snapshots.";
+    return;
+  }
+
+  const focusedPlayer = chooseFocusedPlayer(matchingNames, searchTerm);
+  const matches = allEntries
+    .filter(entry => resolvePlayerName(entry.player) === focusedPlayer)
+    .sort((a, b) => a.seasonIndex - b.seasonIndex);
+  const ranks = matches.map(match => Number(match.rank)).filter(Number.isFinite);
+  const bestRank = ranks.length > 0 ? Math.min(...ranks) : null;
+  const averageRank = ranks.length > 0
+    ? (ranks.reduce((sum, rank) => sum + rank, 0) / ranks.length).toFixed(1)
+    : "Unknown";
+  const currentSeason = seasonalLeaderboards.find(season =>
+    season.scope === seasonalCatalog?.currentScope
+  );
+  const currentEntry = currentSeason && matches.find(match => match.scope === currentSeason.scope);
+
+  if (matches.length > 1) {
+    renderSeasonalRankChart(focusedPlayer, matches);
+  }
+
+  seasonalPlayerSummary.innerHTML = `
+    <div class="summary-item">
+      <div class="summary-label">Player</div>
+      <div class="summary-value">${escapeHtml(focusedPlayer)}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Seasons recorded</div>
+      <div class="summary-value">${matches.length}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Best seasonal rank</div>
+      <div class="summary-value">${bestRank === null ? "Unknown" : formatRank(bestRank)}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Average recorded rank</div>
+      <div class="summary-value">${averageRank}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Current season rank${currentSeason ? ` (${escapeHtml(currentSeason.name)})` : ""}</div>
+      <div class="summary-value">${currentEntry ? formatRank(currentEntry.rank) : "Not in recorded top 100"}</div>
+    </div>
+  `;
+  seasonalPlayerSummary.classList.remove("hidden");
+
+  const firstPlaceScores = new Map(seasonalLeaderboards.map(season => [
+    season.scope,
+    getSeasonalEntries(season).find(entry => Number(entry.rank) === 1)?.score
+  ]));
+  matches.forEach(match => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${escapeHtml(match.seasonName)}</td>
+      <td>${formatRank(match.rank)}</td>
+      <td>${escapeHtml(match.player)}</td>
+      <td>${formatScore(match.score)}</td>
+      <td>${formatSeasonalScoreGap(match.score, firstPlaceScores.get(match.scope))}</td>
+    `;
+    seasonalPlayerHistoryBody.appendChild(row);
+  });
+
+  const otherMatchingNames = matchingNames
+    .filter(name => name !== focusedPlayer)
+    .sort((a, b) => a.localeCompare(b));
+  seasonalPlayerStatus.innerHTML =
+    `${matches.length} seasonal ranking${matches.length === 1 ? "" : "s"} found for ${escapeHtml(focusedPlayer)}` +
+    (otherMatchingNames.length > 0
+      ? ` · <span id="seasonal-other-matches-toggle" class="other-matches-toggle" role="button" tabindex="0">` +
+        `${otherMatchingNames.length} other matching player${otherMatchingNames.length === 1 ? "" : "s"}</span>`
+      : "");
+  const otherMatchesToggle = document.getElementById("seasonal-other-matches-toggle");
+  if (otherMatchesToggle) {
+    const showOtherMatches = () => renderSeasonalOtherMatchesList(otherMatchingNames);
+    otherMatchesToggle.addEventListener("click", showOtherMatches);
+    otherMatchesToggle.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        showOtherMatches();
+      }
+    });
+  }
+  seasonalPlayerHistoryWrapper.classList.remove("hidden");
+}
+
+function renderSeasonalOtherMatchesList(names) {
+  const isCurrentlyVisible = !seasonalOtherMatchesList.classList.contains("hidden");
+  seasonalOtherMatchesList.innerHTML = "";
+  if (isCurrentlyVisible) {
+    seasonalOtherMatchesList.classList.add("hidden");
+    return;
+  }
+
+  names.forEach(name => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "other-matches-item";
+    item.textContent = name;
+    item.addEventListener("click", () => {
+      seasonalPlayerSearch.value = name;
+      searchSeasonalPlayer(name);
+    });
+    seasonalOtherMatchesList.appendChild(item);
+  });
+  seasonalOtherMatchesList.classList.remove("hidden");
+}
+
+function renderSeasonalRankChart(playerName, matches) {
+  const allSeasons = seasonalLeaderboards.map(season => ({
+    ...season,
+    rank: Number(matches.find(match => match.scope === season.scope)?.rank)
+  }));
+  const firstRankedSeason = allSeasons.findIndex(season => Number.isFinite(season.rank));
+  const seasons = allSeasons.slice(firstRankedSeason);
+  const rankedSeasons = seasons.filter(season => Number.isFinite(season.rank));
+  if (rankedSeasons.length < 2 || !seasonalRankChartCanvas) {
+    return;
+  }
+
+  const maximumRecordedRank = Math.max(...rankedSeasons.map(season => season.rank));
+  const zoomRanges = {
+    "0-10": { max: 10, step: 1 },
+    "0-25": { max: 25, step: 5 },
+    "0-50": { max: 50, step: 10 },
+    "0-100": { max: 100, step: 10 }
+  };
+  const selectedRange = zoomRanges[seasonalRankScaleZoom];
+  const rankStepSize = selectedRange?.step ?? Math.max(1, Math.ceil(maximumRecordedRank / 10));
+  const rankAxisMax = selectedRange?.max ?? Math.max(2, Math.ceil(maximumRecordedRank / rankStepSize) * rankStepSize);
+  if (seasonalRankScaleZoomSelect) {
+    seasonalRankScaleZoomSelect.value = seasonalRankScaleZoom;
+  }
+
+  seasonalRankChart = new Chart(seasonalRankChartCanvas, {
+    type: "line",
+    data: {
+      labels: seasons.map(season => season.name),
+      datasets: [{
+        label: `${playerName} seasonal rank`,
+        data: seasons.map(season => Number.isFinite(season.rank) ? season.rank : null),
+        borderColor: "#4d9cff",
+        backgroundColor: "rgba(77, 156, 255, 0.16)",
+        pointBackgroundColor: seasons.map(season =>
+          Number.isFinite(season.rank) ? getRankColor(season.rank) : "transparent"
+        ),
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        borderWidth: 3,
+        tension: 0.25,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: "index"
+      },
+      plugins: {
+        legend: {
+          labels: { color: "#c1ccdb" }
+        },
+        tooltip: {
+          callbacks: {
+            label: context => {
+              const season = seasons[context.dataIndex];
+              const match = matches.find(item => item.scope === season.scope);
+              return `Rank: ${formatRank(season.rank)} · Score: ${formatScore(match.score)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: "#8e9db2",
+            maxRotation: 45,
+            minRotation: 0
+          },
+          grid: { display: false }
+        },
+        y: {
+          min: 1,
+          max: rankAxisMax,
+          reverse: true,
+          ticks: {
+            color: "#8e9db2",
+            stepSize: rankStepSize,
+            precision: 0,
+            callback: value => Number.isInteger(value) ? formatRank(value) : ""
+          },
+          grid: { color: "rgba(142, 157, 178, 0.14)" }
+        }
+      }
+    }
+  });
+
+  seasonalRankChartContainer.classList.remove("hidden");
+}
+
+if (seasonalRankScaleZoomSelect) {
+  seasonalRankScaleZoomSelect.addEventListener("change", event => {
+    seasonalRankScaleZoom = event.target.value;
+    if (seasonalPlayerSearch.value.trim()) {
+      searchSeasonalPlayer(seasonalPlayerSearch.value);
+    }
+  });
+}
+
+function setSeasonalSubmitStatus(message, className = "status") {
+  seasonalSubmitStatus.textContent = message;
+  seasonalSubmitStatus.className = className;
+}
+
+function renderSeasonalSubmitPreview(playerName, results) {
+  seasonalSubmitPlayer.textContent = `${playerName}'s seasonal results`;
+  seasonalSubmitResults.innerHTML = "";
+  const rankedResults = results.filter(result => result.rank !== null && result.rank !== undefined && Number.isFinite(Number(result.rank)));
+  const chartResults = results.filter(result => seasonalCatalog?.seasons.some(season => season.scope === result.scope));
+
+  chartResults.forEach(result => {
+    const row = document.createElement("div");
+    row.className = "seasonal-submit-result-row";
+    const seasonName = seasonalCatalog?.seasons.find(season => season.scope === result.scope)?.name || result.name;
+    row.innerHTML = `
+      <span>${escapeHtml(seasonName)}</span>
+      <span>${result.rank === null ? "Not ranked" : `Rank ${formatRank(result.rank)}`}</span>
+      <span>${result.score === null ? "—" : formatScore(result.score)}</span>
+    `;
+    seasonalSubmitResults.appendChild(row);
+  });
+
+  if (seasonalSubmitChart) {
+    seasonalSubmitChart.destroy();
+    seasonalSubmitChart = null;
+  }
+  if (rankedResults.length > 1 && seasonalSubmitChartCanvas) {
+    seasonalSubmitChart = new Chart(seasonalSubmitChartCanvas, {
+      type: "line",
+      data: {
+        labels: chartResults.map(result =>
+          seasonalCatalog?.seasons.find(season => season.scope === result.scope)?.name || result.name
+        ),
+        datasets: [{
+          label: "Seasonal rank",
+          data: chartResults.map(result => result.rank !== null && result.rank !== undefined && Number.isFinite(Number(result.rank)) ? Number(result.rank) : null),
+          borderColor: "#4d9cff",
+          backgroundColor: "rgba(77, 156, 255, 0.16)",
+          pointBackgroundColor: chartResults.map(result =>
+            result.rank !== null && result.rank !== undefined && Number.isFinite(Number(result.rank))
+              ? getRankColor(Number(result.rank))
+              : "transparent"
+          ),
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          borderWidth: 2,
+          tension: 0.25,
+          spanGaps: false,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: "#c1ccdb" } },
+          tooltip: {
+            callbacks: {
+              label: context => {
+                const result = chartResults[context.dataIndex];
+                return `Rank: ${formatRank(result.rank)} · Score: ${formatScore(result.score)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: "#8e9db2", maxRotation: 45, minRotation: 0 }, grid: { display: false } },
+          y: {
+            reverse: true,
+            beginAtZero: false,
+            ticks: { color: "#8e9db2", precision: 0 },
+            grid: { color: "rgba(142, 157, 178, 0.14)" }
+          }
+        }
+      }
+    });
+  }
+
+  seasonalSubmitLookupSection.classList.add("hidden");
+  seasonalSubmitPreview.classList.remove("hidden");
+}
+
+function resetSeasonalSubmitLookup() {
+  cachedSeasonalSubmitResults = null;
+  seasonalSubmitPreview.classList.add("hidden");
+  seasonalSubmitLookupSection.classList.remove("hidden");
+  seasonalSubmitConfirmButton.disabled = false;
+  setSeasonalSubmitStatus("", "status");
+  seasonalSubmitLookupButton.disabled = false;
+  if (seasonalSubmitChart) {
+    seasonalSubmitChart.destroy();
+    seasonalSubmitChart = null;
+  }
+}
+
+function resetSeasonalSubmitModal() {
+  resetSeasonalSubmitLookup();
+  seasonalSubmitEidInput.value = "";
+  seasonalSaveEidCheckbox.checked = true;
+  renderSeasonalSavedEids();
+}
+
+function closeSeasonalSubmitModal() {
+  seasonalSubmitModal?.classList.add("hidden");
+  cachedSeasonalSubmitResults = null;
+  seasonalSubmitEidInput.value = "";
+  renderSeasonalSavedEids();
+  if (seasonalSubmitChart) {
+    seasonalSubmitChart.destroy();
+    seasonalSubmitChart = null;
+  }
+}
+
+function hideSeasonalRankChart() {
+  if (seasonalRankChart) {
+    seasonalRankChart.destroy();
+    seasonalRankChart = null;
+  }
+
+  seasonalRankChartContainer?.classList.add("hidden");
+}
+
+function setLeaderboardView(showSeasonal) {
+  allTimeView.classList.toggle("hidden", showSeasonal);
+  seasonalView.classList.toggle("hidden", !showSeasonal);
+  dateFormatFloater.classList.remove("hidden");
+  dateFormatRow.classList.toggle("hidden", showSeasonal);
+  allTimeViewButton.classList.toggle("active", !showSeasonal);
+  seasonalViewButton.classList.toggle("active", showSeasonal);
+  allTimeViewButton.setAttribute("aria-pressed", String(!showSeasonal));
+  seasonalViewButton.setAttribute("aria-pressed", String(showSeasonal));
+  siteTitle.textContent = showSeasonal
+    ? "Egg Inc Seasonal Leaderboards - Experimental"
+    : "Egg Inc All Time Leaderboard - Experimental";
+  siteSubtitle.textContent = showSeasonal
+    ? "Explore recorded seasonal leaderboard rankings and player history!"
+    : "Explore archived All Time leaderboard scores and rankings!";
+
+  if (showSeasonal) {
+    loadSeasonalLeaderboards();
+  }
 }
 
 // Finds the most recent date this player (matched by canonical/normalized
@@ -1429,20 +2100,212 @@ if (jumpTopButton) {
 
 if (jumpSearchButton) {
   jumpSearchButton.addEventListener("click", () => {
-    scrollToElementById("search-card");
+    scrollToElementById(seasonalView.classList.contains("hidden")
+      ? "search-card"
+      : "seasonal-search-card");
   });
 }
 
 if (jumpControlsButton) {
   jumpControlsButton.addEventListener("click", () => {
-    scrollToElementById("controls-card");
+    scrollToElementById(seasonalView.classList.contains("hidden")
+      ? "controls-card"
+      : "seasonal-controls-card");
   });
 }
 
 if (jumpLeaderboardButton) {
   jumpLeaderboardButton.addEventListener("click", () => {
-    scrollToElementById("leaderboard-card");
+    scrollToElementById(seasonalView.classList.contains("hidden")
+      ? "leaderboard-card"
+      : "seasonal-leaderboard-card");
   });
+}
+
+allTimeViewButton.addEventListener("click", () => setLeaderboardView(false));
+seasonalViewButton.addEventListener("click", () => setLeaderboardView(true));
+seasonalPlayerSearch.addEventListener("input", () => {
+  searchSeasonalPlayer(seasonalPlayerSearch.value);
+});
+seasonalClearSearchButton.addEventListener("click", () => {
+  seasonalPlayerSearch.value = "";
+  searchSeasonalPlayer("");
+});
+
+if (seasonalSubmitScoreButton) {
+  seasonalSubmitScoreButton.addEventListener("click", () => {
+    resetSeasonalSubmitModal();
+    seasonalSubmitModal?.classList.remove("hidden");
+  });
+}
+
+if (closeSeasonalSubmitModalButton) {
+  closeSeasonalSubmitModalButton.addEventListener("click", () => {
+    closeSeasonalSubmitModal();
+  });
+}
+
+if (seasonalSubmitModal) {
+  seasonalSubmitModal.addEventListener("click", event => {
+    if (event.target.classList.contains("modal-backdrop")) {
+      closeSeasonalSubmitModal();
+    }
+  });
+}
+
+if (seasonalSubmitLookupForm) {
+  seasonalSubmitLookupForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const eid = seasonalSubmitEidInput.value.trim().toUpperCase();
+    seasonalSubmitEidInput.value = eid;
+    if (!/^EI\d{16,20}$/.test(eid)) {
+      setSeasonalSubmitStatus("Enter a valid EggInc ID (EI followed by 16–20 digits).", "error");
+      return;
+    }
+
+    seasonalSubmitLookupButton.disabled = true;
+    seasonalSubmitPreview.classList.add("hidden");
+    setSeasonalSubmitStatus("Looking up your seasonal results...", "status");
+    try {
+      const { player, results } = await fetchSeasonalEidResults(eid);
+      cachedSeasonalSubmitResults = { eid, player, results };
+      renderSeasonalSubmitPreview(player, results);
+      if (seasonalSaveEidCheckbox.checked) {
+        addSavedEid(eid);
+        updateSavedEidUsername(eid, player);
+      }
+      setSeasonalSubmitStatus("Preview only: nothing is published unless you confirm below.", "status");
+      seasonalSubmitConfirmButton.disabled = false;
+    } catch (error) {
+      setSeasonalSubmitStatus(error.message, "status error");
+    } finally {
+      seasonalSubmitLookupButton.disabled = false;
+    }
+  });
+}
+
+async function fetchSeasonalEidResults(eid) {
+  const apiBase = "https://ei_worker.tylertms.workers.dev";
+  const nameResponse = await fetch(`${apiBase}/player_summary?eid=${encodeURIComponent(eid)}`);
+  if (!nameResponse.ok) {
+    throw new Error(`Could not look up the player name (HTTP ${nameResponse.status}).`);
+  }
+  const nameData = await nameResponse.json();
+  const player = typeof nameData.user_name === "string" ? nameData.user_name.trim() : "";
+  if (nameData.error || !player) {
+    throw new Error("Could not determine the player's name from that EggInc ID.");
+  }
+
+  const infoResponse = await fetch(`${apiBase}/leaderboard_info`);
+  if (!infoResponse.ok) {
+    throw new Error(`Could not load seasonal leaderboard scopes (HTTP ${infoResponse.status}).`);
+  }
+  const info = await infoResponse.json();
+  if (!Array.isArray(info.seasonsList)) {
+    throw new Error("The seasonal leaderboard catalog has an invalid format.");
+  }
+  const allTimeScope = String(info.allTimeScope || "ALL_TIME").toLowerCase();
+  const seasons = info.seasonsList.filter(season =>
+    season && typeof season.scope === "string" && /^[a-zA-Z0-9_-]+$/.test(season.scope.trim()) &&
+    season.scope.trim().toLowerCase() !== allTimeScope &&
+    season.scope.trim().toLowerCase() !== "all_time" &&
+    typeof season.name === "string" && season.name.trim()
+  );
+  if (seasons.length === 0 || seasons.length > 64) {
+    throw new Error("The seasonal leaderboard catalog has no valid scopes or exceeds the supported limit.");
+  }
+
+  const results = await Promise.all(seasons.map(async season => {
+    const url = new URL(`${apiBase}/leaderboard`);
+    url.searchParams.set("eid", eid);
+    url.searchParams.set("scope", season.scope.trim());
+    url.searchParams.set("grade", "5");
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Seasonal lookup failed for ${season.name} (HTTP ${response.status}).`);
+    }
+    const data = await response.json();
+    const rankValue = data.rank;
+    const scoreValue = data.score;
+    const rank = rankValue === null || rankValue === undefined || rankValue === "" ? NaN : Number(rankValue);
+    const score = scoreValue === null || scoreValue === undefined || scoreValue === "" ? NaN : Number(scoreValue);
+    if (!Number.isSafeInteger(rank) || rank < 1 || !Number.isFinite(score) || score < 0) {
+      return { scope: season.scope.trim(), name: season.name.trim(), rank: null, score: null };
+    }
+    return {
+      scope: season.scope.trim(),
+      name: season.name.trim(),
+      rank: String(rank),
+      score: String(scoreValue)
+    };
+  }));
+
+  if (!results.some(result => result.rank !== null)) {
+    throw new Error("No seasonal rankings were found for this player.");
+  }
+  return { player, results };
+}
+
+if (seasonalSubmitConfirmButton) {
+  seasonalSubmitConfirmButton.addEventListener("click", async () => {
+    if (!cachedSeasonalSubmitResults) return;
+    seasonalSubmitConfirmButton.disabled = true;
+    seasonalSubmitAgainButton.disabled = true;
+    seasonalSubmitCancelButton.disabled = true;
+    setSeasonalSubmitStatus("Submitting your previewed seasonal results...", "status");
+    try {
+      const response = await fetch(SEASONAL_SUBMIT_WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "confirm",
+          eid: cachedSeasonalSubmitResults.eid,
+          player: cachedSeasonalSubmitResults.player,
+          results: cachedSeasonalSubmitResults.results
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "Could not submit seasonal results.");
+      }
+      cachedSeasonalSubmitResults = null;
+      setSeasonalSubmitStatus(`Seasonal results for ${result.player} were submitted.`, "status success");
+      seasonalSubmitPreview.classList.add("hidden");
+      result.results.filter(entry => entry.rank !== null).forEach(entry => {
+        const row = {
+          scope: entry.scope,
+          seasonName: entry.name,
+          rank: entry.rank,
+          player: result.player,
+          score: entry.score,
+          source: "submission"
+        };
+        const existingIndex = seasonalSubmissions.findIndex(item =>
+          item.scope === row.scope && resolvePlayerName(item.player).toLowerCase() === row.player.toLowerCase()
+        );
+        if (existingIndex >= 0) seasonalSubmissions[existingIndex] = row;
+        else seasonalSubmissions.push(row);
+      });
+      if (seasonalDataLoaded) {
+        renderSeasonalLeaderboard(currentSeasonalScope || seasonalCatalog?.currentScope);
+        if (seasonalPlayerSearch.value.trim()) searchSeasonalPlayer(seasonalPlayerSearch.value);
+      }
+    } catch (error) {
+      setSeasonalSubmitStatus(error.message, "status error");
+    } finally {
+      seasonalSubmitConfirmButton.disabled = false;
+      seasonalSubmitAgainButton.disabled = false;
+      seasonalSubmitCancelButton.disabled = false;
+    }
+  });
+}
+
+if (seasonalSubmitAgainButton) {
+  seasonalSubmitAgainButton.addEventListener("click", resetSeasonalSubmitLookup);
+}
+
+if (seasonalSubmitCancelButton) {
+  seasonalSubmitCancelButton.addEventListener("click", closeSeasonalSubmitModal);
 }
 
 previousButton.addEventListener("click", () => {
@@ -1508,6 +2371,7 @@ function addSavedEid(eid) {
 
   setSavedEids(eids);
   renderSavedEids();
+  renderSeasonalSavedEids();
 }
 
 function removeSavedEid(eid) {
@@ -1515,6 +2379,7 @@ function removeSavedEid(eid) {
   delete eids[eid];
   setSavedEids(eids);
   renderSavedEids();
+  renderSeasonalSavedEids();
 }
 
 function updateSavedEidUsername(eid, username) {
@@ -1525,6 +2390,7 @@ function updateSavedEidUsername(eid, username) {
   eids[eid] = { ...eids[eid], username };
   setSavedEids(eids);
   renderSavedEids();
+  renderSeasonalSavedEids();
 }
 
 function savedEidDisplayName(eid, entry) {
@@ -1532,24 +2398,30 @@ function savedEidDisplayName(eid, entry) {
 }
 
 function renderSavedEids() {
-  if (!savedEidsWrapper || !savedEidsList) return;
+  renderSavedEidList(savedEidsWrapper, savedEidsList, submitEidInput);
+}
 
-  const eids = getSavedEids();
-  const entries = Object.entries(eids);
+function renderSeasonalSavedEids() {
+  renderSavedEidList(seasonalSavedEidsWrapper, seasonalSavedEidsList, seasonalSubmitEidInput);
+}
 
-  savedEidsList.innerHTML = "";
+function renderSavedEidList(wrapper, list, input) {
+  if (!wrapper || !list) return;
+
+  const entries = Object.entries(getSavedEids());
+  list.innerHTML = "";
 
   if (entries.length === 0) {
-    savedEidsWrapper.classList.add("hidden");
+    wrapper.classList.add("hidden");
     return;
   }
 
-  savedEidsWrapper.classList.remove("hidden");
+  wrapper.classList.remove("hidden");
 
   entries.forEach(([eid, entry]) => {
     const pill = document.createElement("span");
     pill.className = "saved-eid-pill";
-    if (submitEidInput && submitEidInput.value.trim().toUpperCase() === eid) {
+    if (input?.value.trim().toUpperCase() === eid) {
       pill.classList.add("active");
     }
 
@@ -1561,46 +2433,48 @@ function renderSavedEids() {
     editButton.addEventListener("click", () => {
       const name = prompt("Enter a name for this ID:", entry.nickname || entry.username || "");
       if (name === null) return;
-      const eids2 = getSavedEids();
-      if (!eids2[eid]) return;
-      eids2[eid] = { ...eids2[eid], nickname: name || undefined };
-      setSavedEids(eids2);
+      const eids = getSavedEids();
+      if (!eids[eid]) return;
+      eids[eid] = { ...eids[eid], nickname: name || undefined };
+      setSavedEids(eids);
       renderSavedEids();
+      renderSeasonalSavedEids();
     });
+    pill.appendChild(editButton);
 
-    const nameSpan = document.createElement("span");
+    const nameSpan = document.createElement("button");
+    nameSpan.type = "button";
     nameSpan.className = "saved-eid-pill-name";
     nameSpan.textContent = savedEidDisplayName(eid, entry);
     nameSpan.title = eid;
     nameSpan.addEventListener("click", () => {
-      submitEidInput.value = eid;
+      if (!input) return;
+      input.value = eid;
       renderSavedEids();
-      submitEidInput.focus();
+      renderSeasonalSavedEids();
+      input.focus();
     });
+    pill.appendChild(nameSpan);
 
     const removeButton = document.createElement("button");
     removeButton.type = "button";
     removeButton.className = "saved-eid-remove";
     removeButton.setAttribute("aria-label", "Forget this ID");
     removeButton.textContent = "\u00d7";
-    removeButton.addEventListener("click", () => {
-      removeSavedEid(eid);
-    });
-
-    pill.appendChild(editButton);
-    pill.appendChild(nameSpan);
+    removeButton.addEventListener("click", () => removeSavedEid(eid));
     pill.appendChild(removeButton);
-    savedEidsList.appendChild(pill);
+    list.appendChild(pill);
   });
 }
 
 /* -------------------------------------------------------------------------
    "Submit your ranking" modal - opened via the "Submit Your Score" button.
-   Sends the visitor's EggInc ID to the Cloudflare Worker (see
-   SUBMIT_WORKER_URL above and worker/README.md) in two steps:
+   Looks up the visitor's All Time entry in the browser and sends the EID and
+   prefetched public data to the Cloudflare Worker (see SUBMIT_WORKER_URL and
+   worker/README.md) in two steps:
 
-     1. "Look up" runs a read-only preview - the Worker fetches the
-        player's name/rank/score but does NOT publish anything yet.
+     1. "Look up" runs a read-only preview - the browser fetches the player's
+        name/rank/score and the Worker checks rate-limit status.
      2. If the visitor clicks "Confirm & Submit", only THEN does the Worker
         actually publish the result to the leaderboard data.
 
@@ -1698,7 +2572,14 @@ if (submitModal) {
 }
 
 if (submitEidInput) {
-  submitEidInput.addEventListener("input", renderSavedEids);
+  submitEidInput.addEventListener("input", () => {
+    renderSavedEids();
+    renderSeasonalSavedEids();
+  });
+}
+
+if (seasonalSubmitEidInput) {
+  seasonalSubmitEidInput.addEventListener("input", renderSeasonalSavedEids);
 }
 
 if (submitLookupForm) {

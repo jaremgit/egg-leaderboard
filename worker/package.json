@@ -2,7 +2,7 @@
   "name": "egg-leaderboard-submit-worker",
   "version": "1.0.0",
   "private": true,
-  "description": "Cloudflare Worker that privately looks up a player's EggInc ALL_TIME/AAA rank/score and commits it into the egg-leaderboard-preview data files. The EID a visitor submits is used only in-memory for a single lookup and is never logged, stored, or committed anywhere.",
+  "description": "Cloudflare Worker for EggInc All Time and Seasonal score submissions; Seasonal lookups run in the browser, and raw EIDs are never logged or persisted by the Worker.",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

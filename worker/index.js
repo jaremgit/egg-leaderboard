@@ -4,15 +4,15 @@
    Handles POST /submit { eid: "EI...", action: "preview" | "confirm" } from
    the static site's "Submit your score" popup. Two actions are supported:
 
-     "preview" (default) - looks up the player's ALL_TIME / Grade 5 (AAA)
-        name/rank/score via ei_worker and returns it WITHOUT publishing
-        anything or consuming the once-per-day rate limit. This lets a
-        visitor see their result before deciding whether to submit it.
+     "preview" (default) - accepts the browser's prefetched ALL_TIME / Grade
+        5 (AAA) name/rank/score and returns it WITHOUT publishing anything or
+        consuming the once-per-day rate limit. This lets a visitor see their
+        result before deciding whether to submit it.
 
-     "confirm" - repeats the same lookup (so the published data is fresh),
-        enforces the one-submission-per-EID-per-day rate limit, and commits
-        the result into today's data/<date>.json snapshot in this GitHub
-        repo, using a GitHub personal access token stored as a Worker secret.
+     "confirm" - accepts the browser's prefetched lookup result, enforces
+        the one-submission-per-EID-per-day rate limit, and commits the result
+        into today's data/<date>.json snapshot in this GitHub repo, using a
+        GitHub personal access token stored as a Worker secret.
         It also writes the same entry into PENDING_SUBMISSIONS_KV so the
         site can display it immediately (see GET /pending below) without
         waiting for Vercel to notice/rebuild from the GitHub commit. GitHub
@@ -24,12 +24,10 @@
    frontend can merge them into the table live. This is public/read-only
    data (the same name/rank/score already visible in-game and on the site).
 
-   PRIVACY NOTE: The EID a visitor submits is only ever held in memory for
-   the duration of a single request. It is never logged (no console.log of
-   the eid), never stored in KV or in git, and is discarded as soon as the
-   ei_worker lookup completes. Only the resulting public leaderboard fields
-   (name, score, rank) - the same information already visible in-game and on
-   this site - are persisted, and only for "confirm" requests.
+   PRIVACY NOTE: Seasonal lookups are performed by the browser. The EID is
+   received by this Worker only for salted rate-limit hashing; it is never
+   logged, stored in KV, or written to git. Only confirmed public leaderboard
+   fields (name, score, rank, season) are persisted.
    ========================================================================= */
 
 const EID_PATTERN = /^EI\d{16,20}$/;
@@ -70,6 +68,10 @@ export default {
 
     if (request.method !== "POST") {
       return withCors(jsonError("Only POST requests are supported.", 405));
+    }
+
+    if (url.pathname === "/submit-seasonal") {
+      return handleSeasonalSubmission(request, env);
     }
 
     if (url.pathname !== "/submit") {
@@ -197,6 +199,189 @@ export default {
     );
   }
 };
+
+async function handleSeasonalSubmission(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return withCors(jsonError("Request body must be JSON.", 400));
+  }
+
+  if (body.action !== "confirm") {
+    return withCors(jsonError("Seasonal results must be explicitly confirmed.", 400));
+  }
+
+  const eid = typeof body.eid === "string" ? body.eid.trim().toUpperCase() : "";
+  const player = typeof body.player === "string" ? body.player.trim() : "";
+  const results = body.results;
+  if (!EID_PATTERN.test(eid)) {
+    return withCors(jsonError("That doesn't look like a valid EggInc ID.", 400));
+  }
+  if (!player || player.length > 100 || !Array.isArray(results) || results.length === 0 || results.length > 64) {
+    return withCors(jsonError("The confirmed seasonal results are invalid.", 400));
+  }
+
+  const hash = await hashEid(eid, env.SUBMIT_HASH_SALT);
+  const rateLimitKey = `seasonal-submit:${hash}`;
+  if (env.DISABLE_RATE_LIMIT !== "true" && await env.RATE_LIMIT_KV.get(rateLimitKey)) {
+    return withCors(jsonError("You've already submitted seasonal results today. Please try again tomorrow.", 429));
+  }
+
+  try {
+    const validatedResults = await validateSeasonalResults(results, player, env);
+    if (validatedResults.length === 0) {
+      return withCors(jsonError("No seasonal rankings were found for this player.", 404));
+    }
+
+    await commitSeasonalEntriesToGitHub(validatedResults, env);
+    if (env.DISABLE_RATE_LIMIT !== "true") {
+      await env.RATE_LIMIT_KV.put(rateLimitKey, "1", { expirationTtl: 86400 });
+    }
+
+    return withCors(new Response(JSON.stringify({ ok: true, player, results: validatedResults }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    }));
+  } catch (error) {
+    return withCors(jsonError(error.message || "Could not save seasonal results.", 502));
+  }
+}
+
+async function validateSeasonalResults(results, player, env) {
+  const owner = env.GITHUB_OWNER;
+  const repo = env.GITHUB_REPO;
+  const branch = env.SEASONAL_GITHUB_BRANCH || "experimental";
+  const catalogUrl = `https://api.github.com/repos/${owner}/${repo}/contents/data/seasonal/index.json?ref=${encodeURIComponent(branch)}`;
+  const response = await fetch(catalogUrl, {
+    headers: {
+      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "egg-leaderboard-seasonal-submit-worker"
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`Could not validate seasonal scopes from the ${branch} archive (HTTP ${response.status}).`);
+  }
+  const file = await response.json();
+  let catalog;
+  try {
+    catalog = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(file.content.replace(/\n/g, "")), char => char.charCodeAt(0))));
+  } catch {
+    throw new Error("The seasonal archive catalog is invalid.");
+  }
+  if (!Array.isArray(catalog?.seasons)) {
+    throw new Error("The seasonal archive catalog is invalid.");
+  }
+  const seasons = new Map(catalog.seasons
+    .filter(season => typeof season?.scope === "string" &&
+      /^[a-zA-Z0-9_-]+$/.test(season.scope.trim()) &&
+      season.scope.trim().toLowerCase() !== "all_time" &&
+      typeof season.name === "string")
+    .map(season => [season.scope.trim(), season.name.trim()]));
+  if (seasons.size === 0 || seasons.size > 64 || results.length !== seasons.size) {
+    throw new Error("The seasonal leaderboard catalog has no valid scopes or exceeds the supported limit.");
+  }
+
+  const seen = new Set();
+  const validated = [];
+  for (const result of results) {
+    const scope = typeof result?.scope === "string" ? result.scope.trim() : "";
+    if (!seasons.has(scope) || seen.has(scope)) {
+      throw new Error("The seasonal results contain an unknown or duplicate season.");
+    }
+    seen.add(scope);
+    if (result.rank === null && result.score === null) continue;
+
+    const rank = Number(result.rank);
+    const score = Number(result.score);
+    if (!Number.isSafeInteger(rank) || rank < 1 || !Number.isFinite(score) || score < 0) {
+      throw new Error(`The submitted result for ${seasons.get(scope)} is invalid.`);
+    }
+    validated.push({ scope, name: seasons.get(scope), rank: String(rank), score: String(result.score), player });
+  }
+  if (seen.size !== seasons.size) throw new Error("The seasonal results are missing one or more seasons.");
+  return validated;
+}
+
+async function commitSeasonalEntriesToGitHub(results, env) {
+  const token = env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error("Server is misconfigured (missing GitHub token).");
+  }
+  const owner = env.GITHUB_OWNER;
+  const repo = env.GITHUB_REPO;
+  const branch = env.SEASONAL_GITHUB_BRANCH || "experimental";
+  const filePath = "data/seasonal-submissions.json";
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "User-Agent": "egg-leaderboard-seasonal-submit-worker"
+  };
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const getResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${encodeURIComponent(branch)}`,
+      { headers }
+    );
+    let existing = { entries: [] };
+    let sha;
+    if (getResponse.status === 200) {
+      const file = await getResponse.json();
+      sha = file.sha;
+      existing = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(file.content.replace(/\n/g, "")), char => char.charCodeAt(0))));
+      if (!Array.isArray(existing.entries)) {
+        throw new Error("The seasonal submissions archive is invalid.");
+      }
+    } else if (getResponse.status !== 404) {
+      throw new Error("Couldn't read the seasonal submissions archive.");
+    }
+
+    const entries = Array.isArray(existing.entries) ? [...existing.entries] : [];
+    for (const result of results) {
+      if (result.rank === null) continue;
+      const next = {
+        scope: result.scope,
+        seasonName: result.name,
+        rank: result.rank,
+        player: result.player,
+        score: result.score,
+        source: "submission"
+      };
+      const existingIndex = entries.findIndex(entry =>
+        entry.scope === next.scope && String(entry.player).toLowerCase() === next.player.toLowerCase()
+      );
+      if (existingIndex >= 0) entries[existingIndex] = next;
+      else entries.push(next);
+    }
+
+    const archive = {
+      updatedAt: new Date().toISOString().slice(0, 10),
+      entries: entries.sort((a, b) => a.scope.localeCompare(b.scope) ||
+        Number(a.rank) - Number(b.rank) || a.player.localeCompare(b.player))
+    };
+    const bytes = new TextEncoder().encode(JSON.stringify(archive, null, 2));
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    }
+    const putResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "chore: update seasonal submissions",
+        content: btoa(binary),
+        branch,
+        ...(sha ? { sha } : {})
+      })
+    });
+    if (putResponse.ok) return;
+    if (putResponse.status !== 409 && putResponse.status !== 422) {
+      throw new Error("Couldn't save seasonal results. Please try again later.");
+    }
+  }
+  throw new Error("Seasonal results changed during submission. Please try again.");
+}
 
 /* -------------------------------------------------------------------------
    Helpers

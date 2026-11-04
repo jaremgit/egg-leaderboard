@@ -175,6 +175,34 @@ main {
   padding: 18px 0 50px;
 }
 
+.leaderboard-view-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(23, 35, 55, 0.94);
+  box-shadow: 0 10px 24px var(--shadow);
+}
+
+.view-toggle-button {
+  flex: 1;
+  max-width: 240px;
+  background: transparent;
+  color: var(--text-soft);
+}
+
+.view-toggle-button.active {
+  background: var(--blue-dark);
+  color: white;
+}
+
+.view-toggle-button.active:hover {
+  background: var(--blue);
+}
+
 .controls-card,
 .search-card,
 .leaderboard-card {
@@ -198,6 +226,74 @@ main {
   flex: 1;
   flex-direction: column;
   gap: 9px;
+}
+
+.season-picker {
+  display: grid;
+  width: 100%;
+  gap: 14px;
+}
+
+.season-picker-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.season-year-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.season-year-group {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-raised);
+}
+
+.season-year-heading {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.season-button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.season-button {
+  padding: 8px 6px;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+}
+
+.season-button:hover,
+.season-button.active {
+  border-color: var(--blue);
+  background: var(--blue-dark);
+  color: white;
+}
+
+.season-button.current:not(.active) {
+  border-color: var(--gold-dark);
+  color: var(--notice-text);
+}
+
+.season-button.unavailable,
+.season-button.unavailable:hover {
+  border-color: var(--border-light);
+  background: transparent;
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 /* Floating "Date format" toggle - fixed to the viewport so it stays visible
@@ -722,6 +818,62 @@ select:focus {
   display: none;
 }
 
+.seasonal-submit-preview {
+  margin-top: 16px;
+}
+
+.seasonal-submit-preview h3 {
+  margin: 0 0 12px;
+}
+
+.seasonal-submit-chart-wrapper {
+  height: 230px;
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-raised);
+}
+
+.seasonal-submit-results {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  margin-bottom: 14px;
+  overflow: auto;
+}
+
+.seasonal-submit-result-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(90px, auto) minmax(80px, auto);
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-raised);
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.seasonal-submit-result-row span:last-child {
+  color: var(--gold);
+  text-align: right;
+}
+
+.seasonal-submit-preview .submit-preview-actions {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 480px) {
+  .seasonal-submit-result-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .seasonal-submit-result-row span:last-child {
+    grid-column: 2;
+  }
+}
+
 .submit-preview-last-seen {
   grid-column: 1 / -1;
   margin: 4px 0 0;
@@ -771,6 +923,14 @@ button.secondary:hover:not(:disabled) {
 }
 
 #submit-status.success {
+  color: #8fd19e;
+}
+
+#seasonal-submit-status.error {
+  color: #f28b82;
+}
+
+#seasonal-submit-status.success {
   color: #8fd19e;
 }
 
@@ -886,8 +1046,39 @@ td:last-child {
   text-align: right;
 }
 
+.seasonal-score-gap {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
 th:last-child {
   text-align: right;
+}
+
+.seasonal-results-table th:nth-last-child(2),
+.seasonal-results-table td:nth-last-child(2) {
+  width: 1%;
+  padding-left: 12px;
+  padding-right: 12px;
+  text-align: right;
+}
+
+.seasonal-results-table th:last-child,
+.seasonal-results-table td:last-child {
+  width: 1%;
+  padding-left: 12px;
+  padding-right: 25px;
+  text-align: right;
+}
+
+.seasonal-results-table td:nth-last-child(2) {
+  color: var(--gold);
+}
+
+.seasonal-results-table td:last-child {
+  color: var(--text-soft);
 }
 
 tbody tr {
@@ -1005,6 +1196,15 @@ tbody tr:hover {
 }
 
 @media (max-width: 450px) {
+  .leaderboard-view-toggle {
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .view-toggle-button {
+    padding: 10px 8px;
+  }
+
   .player-summary {
     grid-template-columns: 1fr;
   }
@@ -1024,6 +1224,25 @@ tbody tr:hover {
   justify-content: space-between;
   gap: 20px;
   margin-bottom: 16px;
+}
+
+.seasonal-chart-heading {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+}
+
+.seasonal-chart-heading > :first-child {
+  grid-column: 1;
+}
+
+.seasonal-chart-heading .chart-controls {
+  grid-column: 2;
+}
+
+.seasonal-chart-heading::after {
+  content: "";
+  grid-column: 3;
 }
 
 .chart-heading h3 {
@@ -1046,6 +1265,10 @@ tbody tr:hover {
     align-items: stretch;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .seasonal-chart-heading {
+    display: flex;
   }
 
   .chart-wrapper {

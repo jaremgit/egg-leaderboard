@@ -1,11 +1,9 @@
 # Cloudflare Worker configuration for the "submit your score" feature.
 #
-# This Worker is intentionally separate from the static site (index.html /
-# styles.css / app.js). It receives a visitor's EggInc ID (EID), looks up
-# their ALL_TIME / Grade 5 (AAA) leaderboard entry via ei_worker, and commits
-# just their Name/Score/Rank into this repo's data/*.json files. The EID
-# itself is never written to KV, logs, or git - only a one-way hash of it is
-# stored (and only long enough to rate-limit to one submission per day).
+# This Worker handles All Time and Seasonal submissions. All Time lookups
+# use ei_worker from the Worker; Seasonal lookups come from the browser and
+# are confirmed here. The EID is never written to KV, logs, or git - only a
+# salted hash is stored for rate limiting.
 #
 # SETUP (run once from the worker/ folder, see worker/README.md for details):
 #   npm install
@@ -51,3 +49,4 @@ GITHUB_BRANCH = "main"
 EI_WORKER_BASE = "https://ei_worker.tylertms.workers.dev"
 EI_SCOPE = "ALL_TIME"
 EI_GRADE = "5"
+SEASONAL_GITHUB_BRANCH = "main"

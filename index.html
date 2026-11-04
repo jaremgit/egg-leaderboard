@@ -23,7 +23,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EI ATL Archive</title>
+  <title>EI ATL Archive Exp</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥇</text></svg>">
   <link rel="stylesheet" href="styles.css">
   <script>
@@ -71,7 +71,7 @@
       </div>
       <button id="jump-leaderboard-button" type="button" class="jump-button-wide" title="Jump to snapshot leaderboard">🏆 Snapshot</button>
     </div>
-    <div class="date-format-row">
+    <div id="date-format-row" class="date-format-row">
       <label for="date-format-select">📆 Format</label>
       <select id="date-format-select">
         <option value="dmy">DD/MM/YYYY</option>
@@ -85,8 +85,8 @@
   <header class="site-header">
     <div class="container">
       <p class="eyebrow">Historical archive</p>
-      <h1>Egg Inc All Time Leaderboard</h1>
-      <p class="subtitle">
+      <h1 id="site-title">Egg Inc All Time Leaderboard - Experimental</h1>
+      <p id="site-subtitle" class="subtitle">
         Explore archived All Time leaderboard scores and rankings!
       </p>
     </div>
@@ -102,6 +102,12 @@
   </div>
 
   <main class="container">
+    <div class="leaderboard-view-toggle" role="group" aria-label="Leaderboard type">
+      <button id="all-time-view-button" class="view-toggle-button active" type="button" aria-pressed="true">All Time</button>
+      <button id="seasonal-view-button" class="view-toggle-button" type="button" aria-pressed="false">Seasonal</button>
+    </div>
+
+    <div id="all-time-view">
     <section id="search-card" class="search-card">
       <div class="lookup-columns">
         <div class="lookup-column search-column">
@@ -269,7 +275,170 @@
         </table>
       </div>
     </section>
+    </div>
+
+    <div id="seasonal-view" class="hidden">
+      <section id="seasonal-search-card" class="search-card">
+        <div class="lookup-columns">
+          <div class="lookup-column search-column">
+            <p class="eyebrow">Player lookup</p>
+            <h2>Search seasonal history</h2>
+            <p class="search-help">Search players recorded in the seasonal top-100 snapshots.</p>
+
+            <div class="search-controls">
+              <label for="seasonal-player-search">Player name</label>
+              <input
+                id="seasonal-player-search"
+                type="search"
+                placeholder="Enter a player name to search seasonal results."
+                autocomplete="off"
+              >
+              <button id="seasonal-clear-search" type="button">Clear</button>
+            </div>
+
+            <p id="seasonal-player-status" class="status"></p>
+            <div id="seasonal-other-matches-list" class="other-matches-list hidden"></div>
+          </div>
+
+          <div class="lookup-column submit-column seasonal-submit-column">
+            <p class="eyebrow">EID Search &amp; Submission</p>
+            <h2>Submit your seasonal score</h2>
+            <p class="search-help">
+              Look up your current seasonal details and optionally add your ranking to this archive!
+            </p>
+
+            <div class="submit-score-row">
+              <button id="seasonal-submit-score-button" type="button">🏆 Submit Your Seasonal Score</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="seasonal-player-summary" class="player-summary hidden"></div>
+        <div id="seasonal-rank-chart-container" class="score-chart-container hidden">
+          <div class="chart-heading seasonal-chart-heading">
+            <div>
+              <p class="eyebrow">Seasonal progression</p>
+              <h3>Rank by season</h3>
+            </div>
+            <div class="chart-controls">
+              <select id="seasonal-rank-scale-zoom" class="rank-scale-zoom" aria-label="Seasonal rank chart scale">
+                <option value="default">All recorded ranks</option>
+                <option value="0-10">Top 10</option>
+                <option value="0-25">Top 25</option>
+                <option value="0-50">Top 50</option>
+                <option value="0-100">Top 100</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="seasonal-rank-chart" role="img" aria-label="Seasonal rank history chart"></canvas>
+          </div>
+        </div>
+        <div id="seasonal-player-history-wrapper" class="table-wrapper hidden">
+          <table id="seasonal-player-history-table" class="seasonal-results-table seasonal-history-table">
+            <thead>
+              <tr>
+                <th>Season</th>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Total score</th>
+                <th>Gap to 1st</th>
+              </tr>
+            </thead>
+            <tbody id="seasonal-player-history-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="seasonal-controls-card" class="controls-card">
+        <div class="season-picker">
+          <div>
+            <p class="eyebrow">Season</p>
+            <h2 class="season-picker-title">Choose a seasonal leaderboard</h2>
+          </div>
+          <div id="seasonal-season-buttons" class="season-year-grid" aria-label="Seasonal leaderboards">
+            <p class="status">Loading seasons...</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="seasonal-leaderboard-card" class="leaderboard-card">
+        <div class="leaderboard-heading">
+          <div>
+            <p class="eyebrow">Seasonal snapshot</p>
+            <h2 id="seasonal-selected-season">Loading...</h2>
+          </div>
+          <p id="seasonal-status" class="status">Loading...</p>
+        </div>
+
+        <div class="notice">
+          Seasonal snapshots show the top 100 recorded players for each season. One latest snapshot is kept per season.
+        </div>
+
+        <div class="table-wrapper">
+          <table class="seasonal-results-table seasonal-snapshot-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Total score</th>
+                <th>Gap to 1st</th>
+              </tr>
+            </thead>
+            <tbody id="seasonal-leaderboard-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </main>
+
+  <div id="seasonal-submit-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content submit-modal-content">
+      <div class="modal-header">
+        <h2>Submit your seasonal ranking</h2>
+        <button id="close-seasonal-submit-modal" class="modal-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="seasonal-submit-lookup-section">
+          <p class="submit-help">
+            Enter your Egg Inc ID to look up your name and seasonal ranks. The ID is sent to the lookup service for this request and is never published. You can optionally remember it in this browser on this device.
+          </p>
+          <form id="seasonal-submit-lookup-form" class="submit-controls">
+            <label for="seasonal-submit-eid">EggInc ID</label>
+            <input
+              id="seasonal-submit-eid"
+              type="text"
+              placeholder="EI0000000000000000"
+              autocomplete="off"
+              required
+            >
+            <button id="seasonal-submit-lookup-button" type="submit">Look up seasons</button>
+          </form>
+          <label class="save-eid-checkbox-label" for="seasonal-save-eid-checkbox">
+            <input id="seasonal-save-eid-checkbox" type="checkbox" checked>
+            Remember this ID on this device
+          </label>
+          <div id="seasonal-saved-eids-wrapper" class="saved-eids-wrapper hidden">
+            <div id="seasonal-saved-eids-list" class="saved-eids-list"></div>
+          </div>
+        </div>
+        <p id="seasonal-submit-status" class="status"></p>
+        <div id="seasonal-submit-preview" class="seasonal-submit-preview hidden">
+          <h3 id="seasonal-submit-player"></h3>
+          <div class="seasonal-submit-chart-wrapper">
+            <canvas id="seasonal-submit-chart" role="img" aria-label="Seasonal rank and score preview"></canvas>
+          </div>
+          <div id="seasonal-submit-results" class="seasonal-submit-results"></div>
+          <div class="submit-preview-actions">
+            <button id="seasonal-submit-confirm-button" type="button">Confirm &amp; Submit Seasonal Results</button>
+            <button id="seasonal-submit-again-button" type="button" class="secondary">Search again</button>
+            <button id="seasonal-submit-cancel-button" type="button" class="secondary">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Submit Score Modal -->
   <div id="submit-modal" class="modal hidden">

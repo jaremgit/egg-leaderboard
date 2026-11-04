@@ -1,0 +1,51 @@
+name: Update Seasonal Leaderboards
+
+on:
+  schedule:
+    - cron: '1 0 * * 1'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/update-seasonal-leaderboards.yml'
+      - 'scripts/update-seasonal-leaderboards.cjs'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: seasonal-leaderboard-archive
+  cancel-in-progress: false
+
+jobs:
+  update-seasonal-leaderboards:
+    if: github.event_name != 'workflow_dispatch' || github.ref_name == 'main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the triggering branch
+        uses: actions/checkout@v4.1.7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.0.2
+        with:
+          node-version: '22'
+
+      - name: Fetch and update seasonal snapshots
+        run: node scripts/update-seasonal-leaderboards.cjs
+        env:
+          EI_EID: ${{ secrets.EI_EID }}
+
+      - name: Commit changed seasonal snapshots
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/seasonal/
+
+          if git diff --cached --quiet; then
+            echo "No seasonal leaderboard changes to commit"
+          else
+            git commit -m "chore: update seasonal leaderboard data"
+            git push
+          fi
