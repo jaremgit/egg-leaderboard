@@ -168,8 +168,9 @@ All Time data, ongoing All Time and seasonal pulls, and player self-submissions:
    at 00:01 UTC. It stores one `data/seasonal/<scope>.json` snapshot per season
 	 and rewrites a snapshot only when its entries change. Seasonal player
    history compares recorded ranks across seasons, including confirmed
-   out-of-top-100 submissions; the archive does not retain weekly changes
-   within a season.
+	  out-of-top-100 submissions; its rank chart defaults to each player's full
+   recorded range and offers Top 100/50/25/10 zoom presets. The archive does
+   not retain weekly changes within a season.
    Winter 2023 is shown as a disabled placeholder because no leaderboard archive
    exists for it.
 	  Confirmed Seasonal player submissions are stored separately in

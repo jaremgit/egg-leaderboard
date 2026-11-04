@@ -97,6 +97,7 @@ const seasonalOtherMatchesList = document.getElementById("seasonal-other-matches
 const seasonalPlayerSummary = document.getElementById("seasonal-player-summary");
 const seasonalRankChartContainer = document.getElementById("seasonal-rank-chart-container");
 const seasonalRankChartCanvas = document.getElementById("seasonal-rank-chart");
+const seasonalRankScaleZoomSelect = document.getElementById("seasonal-rank-scale-zoom");
 const seasonalPlayerHistoryWrapper = document.getElementById("seasonal-player-history-wrapper");
 const seasonalPlayerHistoryBody = document.getElementById("seasonal-player-history-body");
 const seasonalSubmitScoreButton = document.getElementById("seasonal-submit-score-button");
@@ -294,6 +295,7 @@ let seasonalDataLoaded = false;
 let seasonalDataLoading = null;
 let cachedSeasonalSubmitResults = null;
 let seasonalSubmitChart = null;
+let seasonalRankScaleZoom = "default";
 
 // URLs for the Cloudflare Worker submission endpoints. All Time rank lookups
 // are fetched in the browser; the Worker validates, rate-limits, and publishes
@@ -929,12 +931,22 @@ function renderSeasonalRankChart(playerName, matches) {
   const firstRankedSeason = allSeasons.findIndex(season => Number.isFinite(season.rank));
   const seasons = allSeasons.slice(firstRankedSeason);
   const rankedSeasons = seasons.filter(season => Number.isFinite(season.rank));
-  const maxRank = Math.max(100, ...rankedSeasons.map(season => season.rank));
-  const rankStepSize = Math.ceil(maxRank / 10);
-  const rankAxisMax = Math.ceil(maxRank / rankStepSize) * rankStepSize;
-
   if (rankedSeasons.length < 2 || !seasonalRankChartCanvas) {
     return;
+  }
+
+  const maximumRecordedRank = Math.max(...rankedSeasons.map(season => season.rank));
+  const zoomRanges = {
+    "0-10": { max: 10, step: 1 },
+    "0-25": { max: 25, step: 5 },
+    "0-50": { max: 50, step: 10 },
+    "0-100": { max: 100, step: 10 }
+  };
+  const selectedRange = zoomRanges[seasonalRankScaleZoom];
+  const rankStepSize = selectedRange?.step ?? Math.max(1, Math.ceil(maximumRecordedRank / 10));
+  const rankAxisMax = selectedRange?.max ?? Math.max(2, Math.ceil(maximumRecordedRank / rankStepSize) * rankStepSize);
+  if (seasonalRankScaleZoomSelect) {
+    seasonalRankScaleZoomSelect.value = seasonalRankScaleZoom;
   }
 
   seasonalRankChart = new Chart(seasonalRankChartCanvas, {
@@ -1005,6 +1017,15 @@ function renderSeasonalRankChart(playerName, matches) {
   });
 
   seasonalRankChartContainer.classList.remove("hidden");
+}
+
+if (seasonalRankScaleZoomSelect) {
+  seasonalRankScaleZoomSelect.addEventListener("change", event => {
+    seasonalRankScaleZoom = event.target.value;
+    if (seasonalPlayerSearch.value.trim()) {
+      searchSeasonalPlayer(seasonalPlayerSearch.value);
+    }
+  });
 }
 
 function setSeasonalSubmitStatus(message, className = "status") {
