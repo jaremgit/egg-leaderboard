@@ -745,7 +745,7 @@ function renderSeasonalLeaderboard(scope) {
       row.innerHTML = `
         <td>${formatRank(entry.rank)}</td>
         <td class="player-name-cell" tabindex="0" role="button">${escapeHtml(displayName)}</td>
-      <td>${formatScore(entry.score)}${entry.source === "submission" ? " · Submitted" : ""}</td>
+        <td>${formatScore(entry.score)}</td>
       `;
 
       const nameCell = row.querySelector(".player-name-cell");
@@ -876,6 +876,9 @@ function renderSeasonalRankChart(playerName, matches) {
   const firstRankedSeason = allSeasons.findIndex(season => Number.isFinite(season.rank));
   const seasons = allSeasons.slice(firstRankedSeason);
   const rankedSeasons = seasons.filter(season => Number.isFinite(season.rank));
+  const maxRank = Math.max(100, ...rankedSeasons.map(season => season.rank));
+  const rankStepSize = Math.ceil(maxRank / 10);
+  const rankAxisMax = Math.ceil(maxRank / rankStepSize) * rankStepSize;
 
   if (rankedSeasons.length < 2 || !seasonalRankChartCanvas) {
     return;
@@ -934,11 +937,11 @@ function renderSeasonalRankChart(playerName, matches) {
         },
         y: {
           min: 1,
-          max: 100,
+          max: rankAxisMax,
           reverse: true,
           ticks: {
             color: "#8e9db2",
-            stepSize: 10,
+            stepSize: rankStepSize,
             precision: 0,
             callback: value => Number.isInteger(value) ? formatRank(value) : ""
           },
