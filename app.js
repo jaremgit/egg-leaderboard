@@ -85,6 +85,7 @@ const seasonalView = document.getElementById("seasonal-view");
 const siteTitle = document.getElementById("site-title");
 const siteSubtitle = document.getElementById("site-subtitle");
 const dateFormatFloater = document.getElementById("date-format-floater");
+const dateFormatRow = document.getElementById("date-format-row");
 const seasonalSeasonButtons = document.getElementById("seasonal-season-buttons");
 const seasonalSelectedSeason = document.getElementById("seasonal-selected-season");
 const seasonalStatus = document.getElementById("seasonal-status");
@@ -909,7 +910,8 @@ function hideSeasonalRankChart() {
 function setLeaderboardView(showSeasonal) {
   allTimeView.classList.toggle("hidden", showSeasonal);
   seasonalView.classList.toggle("hidden", !showSeasonal);
-  dateFormatFloater.classList.toggle("hidden", showSeasonal);
+  dateFormatFloater.classList.remove("hidden");
+  dateFormatRow.classList.toggle("hidden", showSeasonal);
   allTimeViewButton.classList.toggle("active", !showSeasonal);
   seasonalViewButton.classList.toggle("active", showSeasonal);
   allTimeViewButton.setAttribute("aria-pressed", String(!showSeasonal));
@@ -1836,19 +1838,25 @@ if (jumpTopButton) {
 
 if (jumpSearchButton) {
   jumpSearchButton.addEventListener("click", () => {
-    scrollToElementById("search-card");
+    scrollToElementById(seasonalView.classList.contains("hidden")
+      ? "search-card"
+      : "seasonal-search-card");
   });
 }
 
 if (jumpControlsButton) {
   jumpControlsButton.addEventListener("click", () => {
-    scrollToElementById("controls-card");
+    scrollToElementById(seasonalView.classList.contains("hidden")
+      ? "controls-card"
+      : "seasonal-controls-card");
   });
 }
 
 if (jumpLeaderboardButton) {
   jumpLeaderboardButton.addEventListener("click", () => {
-    scrollToElementById("leaderboard-card");
+    scrollToElementById(seasonalView.classList.contains("hidden")
+      ? "leaderboard-card"
+      : "seasonal-leaderboard-card");
   });
 }
 
