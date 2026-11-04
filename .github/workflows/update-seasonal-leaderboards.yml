@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - experimental
+      - main
     paths:
       - '.github/workflows/update-seasonal-leaderboards.yml'
       - 'scripts/update-seasonal-leaderboards.cjs'
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   update-seasonal-leaderboards:
-    if: github.event_name != 'workflow_dispatch' || github.ref_name == 'experimental'
+    if: github.event_name != 'workflow_dispatch' || github.ref_name == 'main'
     runs-on: ubuntu-latest
 
     steps:

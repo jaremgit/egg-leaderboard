@@ -14,7 +14,7 @@ The Cloudflare Worker provides separate All Time and Seasonal submission routes.
 
 ## Configuration and deployment
 
-`worker/wrangler.toml` sets `SEASONAL_GITHUB_BRANCH = "experimental"`. The Worker needs the existing `GITHUB_TOKEN` secret to write to that branch and the existing `RATE_LIMIT_KV` binding for rate limits. The token must have repository contents write permission on the configured repository.
+`worker/wrangler.toml` sets `SEASONAL_GITHUB_BRANCH = "main"` for production. The Worker needs the existing `GITHUB_TOKEN` secret to write to that branch and the existing `RATE_LIMIT_KV` binding for rate limits. The token must have repository contents write permission on the configured repository.
 
 From the `worker/` directory, install the Worker dependencies and deploy with Wrangler:
 

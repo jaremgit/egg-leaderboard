@@ -24,7 +24,7 @@ function createEnv() {
     GITHUB_OWNER: "owner",
     GITHUB_REPO: "repo",
     GITHUB_TOKEN: "test-token",
-    SEASONAL_GITHUB_BRANCH: "experimental",
+    SEASONAL_GITHUB_BRANCH: "main",
     EI_WORKER_BASE: "https://ei-worker.test",
     SUBMIT_HASH_SALT: "test-salt",
     DISABLE_RATE_LIMIT: "false",
@@ -106,7 +106,7 @@ test("seasonal submission rejects malformed EIDs before API or GitHub calls", as
   assert.equal(result.ok, false);
 });
 
-test("seasonal confirm writes public entries only to the experimental supplemental archive", async () => {
+test("seasonal confirm writes public entries only to the configured supplemental archive branch", async () => {
   const worker = (await loadWorker()).default;
   const env = createEnv();
   const writes = [];
@@ -119,7 +119,7 @@ test("seasonal confirm writes public entries only to the experimental supplement
   assert.equal(result.ok, true);
   assert.equal(writes.length, 1);
   assert.match(writes[0].url.pathname, /seasonal-submissions\.json$/);
-  assert.equal(writes[0].body.branch, "experimental");
+  assert.equal(writes[0].body.branch, "main");
   const archive = JSON.parse(Buffer.from(writes[0].body.content, "base64").toString("utf8"));
   assert.equal(archive.entries.length, 2);
   assert.equal(archive.entries[0].rank, "134");

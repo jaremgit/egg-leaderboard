@@ -219,7 +219,7 @@ The "Submit your score" feature requires deploying the Cloudflare Worker in
 namespace, GitHub token, secrets) are in [worker/README.md](worker/README.md).
 The Seasonal submission modal uses the same Worker at `/submit-seasonal` and
 stores confirmed public results in `data/seasonal-submissions.json`. Its
-`SEASONAL_GITHUB_BRANCH` variable currently targets `experimental`; deploy the
+`SEASONAL_GITHUB_BRANCH` variable targets `main`; deploy the
 Worker configuration/code before enabling seasonal submissions on a live site.
 
 ## Privacy note
