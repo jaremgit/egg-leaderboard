@@ -1073,6 +1073,14 @@ th:last-child {
   text-align: right;
 }
 
+.seasonal-results-table td:nth-last-child(2) {
+  color: var(--gold);
+}
+
+.seasonal-results-table td:last-child {
+  color: var(--text-soft);
+}
+
 tbody tr {
   transition: background 0.15s ease;
 }
