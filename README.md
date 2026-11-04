@@ -16,15 +16,15 @@ by Auxbrain / Egg, Inc.** in any way.
 
 Egg, Inc.'s in-game leaderboard only ever shows you the *current* top
 players — once a player updates their score, the old data is overwritten. This
-site is a scrapbook of those leaderboards over time: I started by manually uploading as much saved data (from screenshots/old bot commands etc) from the community as I could, going forward every week it saves a
-snapshot of the top 100 players on the ALL_TIME / Grade AAA leaderboard, so you can look back and see how rankings and scores have
-changed, search for a specific player's history, and see graphs of their
-progress.
+site is a scrapbook of those leaderboards over time: I started by manually
+uploading saved historical data from the community, and now the site archives
+weekly top-100 ALL_TIME and seasonal leaderboard snapshots. You can search for
+players, compare their history, and view rank/score graphs.
 
-There's also a "Submit Your Score" button, because the automatic weekly
-snapshot only grabs the top 100 — if you're not in the top 100 (or you just
-want to make sure your entry is captured that week), you can type in your own
-in-game ID and publish your own rank/score to that week's snapshot yourself.
+There are separate "Submit Your Score" and "Submit Your Seasonal Score"
+flows. They look up the player's public rank and score and, after explicit
+confirmation, add results to the relevant archive, including seasonal ranks
+outside the top 100.
 
 None of this is officially sanctioned by the game's developers — it works by
 piggybacking on a community-made API (more on that below), the same way
@@ -78,13 +78,13 @@ committed to this repo and trigger a Vercel redeploy of the static site.
 pull and individual player lookups) comes from a public API called
 `ei_worker`, hosted by a third party (`tylertms`) at
 `ei_worker.tylertms.workers.dev`. This is **not code I wrote, host, or
-control** — my GitHub Action and Cloudflare Worker just make HTTP requests to
-his existing service and store the results.
+control** — the scheduled GitHub Actions and browser lookup flows make HTTP
+requests to this existing service and store or display the results.
 
 Practically, this means:
 - If `ei_worker` goes down, gets rate-limited, or changes its response
-  format, both the weekly snapshot job and the live "Submit Your Score"
-  feature break, and there is nothing I can do about it except wait or find
+  format, the snapshot jobs and live player lookups break, and there is
+  nothing I can do about it except wait or find
   an alternative.
 - I have no SLA, uptime guarantee, or say over that service.
 - This is common practice in the Egg, Inc. fan-tool community — several
@@ -115,7 +115,7 @@ intentional. I am immensely grateful to those that share their work and make the
 | Path | Purpose |
 |---|---|
 | `index.html` | Page markup only - structure and element ids used by `app.js`. |
-| `app.js` | All frontend behavior: loading snapshots, player search, chart rendering, heatmap/gaps modals, and the submit-score popup. Organized into numbered sections (see the banner comment at the top of the file). |
+| `app.js` | All frontend behavior: All Time and Seasonal tables/search/history/charts, saved EIDs, and submission modals. |
 | `styles.css` | All styling for the site. |
 | `data/*.json` | One JSON snapshot per archived date (`YYYY-MM-DD.json`), each containing that date's observed leaderboard entries. |
 | `data/dates.json` | Ordered list of every date that has a snapshot - drives the date picker. |
@@ -166,44 +166,39 @@ All Time data, ongoing All Time and seasonal pulls, and player self-submissions:
    valid seasonal scopes from `leaderboard_info`, excludes the All Time scope,
    and fetches each season's Grade 5 top-100 leaderboard once a week on Monday
    at 00:01 UTC. It stores one `data/seasonal/<scope>.json` snapshot per season
-   and rewrites a snapshot only when its entries change. Seasonal player
-   summaries compare a player's recorded top-100 ranks across these snapshots;
-   the archive does not retain weekly changes within a season.
-   Confirmed Seasonal EID submissions are stored separately in
+	 and rewrites a snapshot only when its entries change. Seasonal player
+   history compares recorded ranks across seasons, including confirmed
+   out-of-top-100 submissions; the archive does not retain weekly changes
+   within a season.
+   Winter 2023 is shown as a disabled placeholder because no leaderboard archive
+   exists for it.
+	  Confirmed Seasonal player submissions are stored separately in
    `data/seasonal-submissions.json` so the weekly top-100 updater never
    overwrites or mislabels them. The Seasonal table and player history merge
-   these public, opt-in results with the canonical snapshots.
+	  these public, opt-in results with the canonical snapshots. Partial-name
+   searches can reveal other matching players, and the rank history chart
+   scales to include each player's recorded ranks.
 4. **Player self-submission** - a visitor can click **Submit Your Score**,
-   enter their EggInc ID (EID), preview their own rank/score, and confirm
-   publishing it. All Time lookups are performed by the Cloudflare Worker;
-   Seasonal lookups are performed by the browser. At Seasonal confirmation,
-   the EID is sent to the Worker only for salted rate-limit hashing; it is
-   never logged, stored, or committed. For All Time submissions, the Worker:
-   - Looks up the player's rank/score via the public `ei_worker` API.
+	  enter their EggInc ID (EID), preview their own rank/score, and confirm
+	  publishing it. Both All Time and Seasonal previews call `ei_worker` from
+   the browser; Seasonal lookups check every Grade 5 seasonal scope. The All
+   Time preview sends its EID to the Worker for the rate-limit status check.
+   On confirmation, each route sends the EID for salted rate-limit hashing;
+   the raw EID is not logged or persisted. The Worker:
    - Rate-limits to one submission per EID per day using its hash; the EID
-	 itself is never logged, stored, or committed.
+	  itself is never logged, stored, or committed.
    - Commits the entry into today's `data/<date>.json` via the GitHub
-	 Contents API.
-   - Also caches the entry in Cloudflare KV so the site can show it
-	 immediately, without waiting for a Vercel rebuild.
-   - Also caches the entry in Cloudflare KV so the site can show it
-	   immediately, without waiting for a Vercel rebuild.
+	  Contents API for All Time, or to `data/seasonal-submissions.json` on
+	 the configured seasonal branch for Seasonal.
+   - Caches All Time entries in Cloudflare KV for immediate display.
 
-The All Time pull and player self-submission write to the same `data/<date>.json` shape
+The All Time pull and All Time self-submission write to the same `data/<date>.json` shape
 (`{ date, complete, observed_entries, entries: [{ rank, player, score,
 source }] }`), which is why the frontend can treat every snapshot the same
 way regardless of how it originated - `source` on each entry (e.g.
 `"ei_worker"` vs `"submission"`) is the only trace of where a given row came
 from. Seasonal snapshots have a separate per-scope shape and are not written
 to the All Time date archive.
-
-   For All Time submissions, the EID is sent to this project's Cloudflare
-   Worker, which uses it in memory to call `ei_worker`. For Seasonal submissions,
-   the browser calls `ei_worker` directly; only the public player name, ranks,
-   scores, and seasonal scopes are sent to this project's Worker after the user
-   confirms. EIDs are not logged, stored, in KV, or committed to GitHub. All Time
-   rate-limits use a salted EID hash; Seasonal rate-limits use a salted player-name
-   hash.
 
 ## Running the site locally
 
@@ -228,25 +223,14 @@ Worker configuration/code before enabling seasonal submissions on a live site.
 
 ## Privacy note
 
-For All Time submissions, the EID is sent to this project's Cloudflare
-Worker, which uses it in memory to call `ei_worker`. For Seasonal submissions,
-the browser calls `ei_worker` directly; only the public player name, ranks,
-scores, and seasonal scopes are sent to this project's Worker after the user
-confirms. EIDs are not logged, stored in KV, or committed to GitHub. All Time
-rate-limits use a salted EID hash; Seasonal rate-limits use a salted player-name
-hash. The optional "Remember this ID" checkbox stores the EID in the visitor's
-browser local storage.
-
-   All Time: EID sent to Worker → in-memory lookup → rate-limit hash (salted) →
-	   cache/store only if within limits.
-   Seasonal: browser → `ei_worker` → public name/rank/score → confirm → send
-	   only player name (salted) for rate-limit hash → cache/store only if within
-	   limits.
-
-   Rate-limiting is per-EID for All Time, per-player-name for Seasonal.
-
-   EIDs are never stored in KV or committed to GitHub; only hashed for rate-limit
-   checks.
+Both preview flows call `ei_worker` directly from the browser. On confirmation,
+the Worker uses a salted hash of the EID for rate limiting; the raw EID is not
+logged or persisted in Worker KV or GitHub. Confirmed public results (player
+name, rank, score, and, for Seasonal, scope) are written to the appropriate
+archive. All Time submissions also use KV for the rate-limit key and an
+immediate-display cache. The optional "Remember this ID" feature stores up to
+10 EIDs and their usernames/nicknames in browser local storage, shared between
+the All Time and Seasonal modals on that browser/device.
 
 ## Contributing / feedback
 

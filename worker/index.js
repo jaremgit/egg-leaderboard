@@ -4,15 +4,15 @@
    Handles POST /submit { eid: "EI...", action: "preview" | "confirm" } from
    the static site's "Submit your score" popup. Two actions are supported:
 
-     "preview" (default) - looks up the player's ALL_TIME / Grade 5 (AAA)
-        name/rank/score via ei_worker and returns it WITHOUT publishing
-        anything or consuming the once-per-day rate limit. This lets a
-        visitor see their result before deciding whether to submit it.
+     "preview" (default) - accepts the browser's prefetched ALL_TIME / Grade
+        5 (AAA) name/rank/score and returns it WITHOUT publishing anything or
+        consuming the once-per-day rate limit. This lets a visitor see their
+        result before deciding whether to submit it.
 
-     "confirm" - repeats the same lookup (so the published data is fresh),
-        enforces the one-submission-per-EID-per-day rate limit, and commits
-        the result into today's data/<date>.json snapshot in this GitHub
-        repo, using a GitHub personal access token stored as a Worker secret.
+     "confirm" - accepts the browser's prefetched lookup result, enforces
+        the one-submission-per-EID-per-day rate limit, and commits the result
+        into today's data/<date>.json snapshot in this GitHub repo, using a
+        GitHub personal access token stored as a Worker secret.
         It also writes the same entry into PENDING_SUBMISSIONS_KV so the
         site can display it immediately (see GET /pending below) without
         waiting for Vercel to notice/rebuild from the GitHub commit. GitHub
@@ -24,10 +24,10 @@
    frontend can merge them into the table live. This is public/read-only
    data (the same name/rank/score already visible in-game and on the site).
 
-   PRIVACY NOTE: The EID is used only in-memory to make the requested API
-   calls. It is never logged, stored in KV, or written to git. Only the
-   resulting public leaderboard fields (name, score, rank, season) are
-   persisted, and only for confirmed submissions.
+   PRIVACY NOTE: Seasonal lookups are performed by the browser. The EID is
+   received by this Worker only for salted rate-limit hashing; it is never
+   logged, stored in KV, or written to git. Only confirmed public leaderboard
+   fields (name, score, rank, season) are persisted.
    ========================================================================= */
 
 const EID_PATTERN = /^EI\d{16,20}$/;

@@ -295,8 +295,9 @@ let seasonalDataLoading = null;
 let cachedSeasonalSubmitResults = null;
 let seasonalSubmitChart = null;
 
-// URL of the Cloudflare Worker that privately looks up a submitted EggInc ID
-// and publishes just the resulting name/rank/score (see worker/README.md
+// URLs for the Cloudflare Worker submission endpoints. All Time rank lookups
+// are fetched in the browser; the Worker validates, rate-limits, and publishes
+// the resulting public data (see worker/README.md
 // for how to deploy your own and get this URL). Leave as-is if you haven't
 // deployed the Worker yet - the submission form will just show an error.
 const SUBMIT_WORKER_URL = "https://egg-leaderboard-submit.jarem.workers.dev/submit";
@@ -2359,24 +2360,30 @@ function savedEidDisplayName(eid, entry) {
 }
 
 function renderSavedEids() {
-  if (!savedEidsWrapper || !savedEidsList) return;
+  renderSavedEidList(savedEidsWrapper, savedEidsList, submitEidInput);
+}
 
-  const eids = getSavedEids();
-  const entries = Object.entries(eids);
+function renderSeasonalSavedEids() {
+  renderSavedEidList(seasonalSavedEidsWrapper, seasonalSavedEidsList, seasonalSubmitEidInput);
+}
 
-  savedEidsList.innerHTML = "";
+function renderSavedEidList(wrapper, list, input) {
+  if (!wrapper || !list) return;
+
+  const entries = Object.entries(getSavedEids());
+  list.innerHTML = "";
 
   if (entries.length === 0) {
-    savedEidsWrapper.classList.add("hidden");
+    wrapper.classList.add("hidden");
     return;
   }
 
-  savedEidsWrapper.classList.remove("hidden");
+  wrapper.classList.remove("hidden");
 
   entries.forEach(([eid, entry]) => {
     const pill = document.createElement("span");
     pill.className = "saved-eid-pill";
-    if (submitEidInput && submitEidInput.value.trim().toUpperCase() === eid) {
+    if (input?.value.trim().toUpperCase() === eid) {
       pill.classList.add("active");
     }
 
@@ -2388,58 +2395,14 @@ function renderSavedEids() {
     editButton.addEventListener("click", () => {
       const name = prompt("Enter a name for this ID:", entry.nickname || entry.username || "");
       if (name === null) return;
-      const eids2 = getSavedEids();
-      if (!eids2[eid]) return;
-      eids2[eid] = { ...eids2[eid], nickname: name || undefined };
-      setSavedEids(eids2);
+      const eids = getSavedEids();
+      if (!eids[eid]) return;
+      eids[eid] = { ...eids[eid], nickname: name || undefined };
+      setSavedEids(eids);
       renderSavedEids();
       renderSeasonalSavedEids();
     });
-
-    const nameSpan = document.createElement("span");
-    nameSpan.className = "saved-eid-pill-name";
-    nameSpan.textContent = savedEidDisplayName(eid, entry);
-    nameSpan.title = eid;
-    nameSpan.addEventListener("click", () => {
-      submitEidInput.value = eid;
-      renderSavedEids();
-      renderSeasonalSavedEids();
-      submitEidInput.focus();
-    });
-
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
-    removeButton.className = "saved-eid-remove";
-    removeButton.setAttribute("aria-label", "Forget this ID");
-    removeButton.textContent = "\u00d7";
-    removeButton.addEventListener("click", () => {
-      removeSavedEid(eid);
-    });
-
     pill.appendChild(editButton);
-    pill.appendChild(nameSpan);
-    pill.appendChild(removeButton);
-    savedEidsList.appendChild(pill);
-  });
-}
-
-function renderSeasonalSavedEids() {
-  if (!seasonalSavedEidsWrapper || !seasonalSavedEidsList) return;
-
-  const entries = Object.entries(getSavedEids());
-  seasonalSavedEidsList.innerHTML = "";
-  if (entries.length === 0) {
-    seasonalSavedEidsWrapper.classList.add("hidden");
-    return;
-  }
-
-  seasonalSavedEidsWrapper.classList.remove("hidden");
-  entries.forEach(([eid, entry]) => {
-    const pill = document.createElement("span");
-    pill.className = "saved-eid-pill";
-    if (seasonalSubmitEidInput?.value.trim().toUpperCase() === eid) {
-      pill.classList.add("active");
-    }
 
     const nameSpan = document.createElement("button");
     nameSpan.type = "button";
@@ -2447,11 +2410,13 @@ function renderSeasonalSavedEids() {
     nameSpan.textContent = savedEidDisplayName(eid, entry);
     nameSpan.title = eid;
     nameSpan.addEventListener("click", () => {
-      seasonalSubmitEidInput.value = eid;
+      if (!input) return;
+      input.value = eid;
       renderSavedEids();
       renderSeasonalSavedEids();
-      seasonalSubmitEidInput.focus();
+      input.focus();
     });
+    pill.appendChild(nameSpan);
 
     const removeButton = document.createElement("button");
     removeButton.type = "button";
@@ -2459,19 +2424,19 @@ function renderSeasonalSavedEids() {
     removeButton.setAttribute("aria-label", "Forget this ID");
     removeButton.textContent = "\u00d7";
     removeButton.addEventListener("click", () => removeSavedEid(eid));
-
-    pill.append(nameSpan, removeButton);
-    seasonalSavedEidsList.appendChild(pill);
+    pill.appendChild(removeButton);
+    list.appendChild(pill);
   });
 }
 
 /* -------------------------------------------------------------------------
    "Submit your ranking" modal - opened via the "Submit Your Score" button.
-   Sends the visitor's EggInc ID to the Cloudflare Worker (see
-   SUBMIT_WORKER_URL above and worker/README.md) in two steps:
+   Looks up the visitor's All Time entry in the browser and sends the EID and
+   prefetched public data to the Cloudflare Worker (see SUBMIT_WORKER_URL and
+   worker/README.md) in two steps:
 
-     1. "Look up" runs a read-only preview - the Worker fetches the
-        player's name/rank/score but does NOT publish anything yet.
+     1. "Look up" runs a read-only preview - the browser fetches the player's
+        name/rank/score and the Worker checks rate-limit status.
      2. If the visitor clicks "Confirm & Submit", only THEN does the Worker
         actually publish the result to the leaderboard data.
 
