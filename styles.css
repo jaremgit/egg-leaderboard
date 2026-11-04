@@ -1057,6 +1057,22 @@ th:last-child {
   text-align: right;
 }
 
+.seasonal-results-table th:nth-last-child(2),
+.seasonal-results-table td:nth-last-child(2) {
+  width: 1%;
+  padding-left: 12px;
+  padding-right: 12px;
+  text-align: right;
+}
+
+.seasonal-results-table th:last-child,
+.seasonal-results-table td:last-child {
+  width: 1%;
+  padding-left: 12px;
+  padding-right: 25px;
+  text-align: right;
+}
+
 tbody tr {
   transition: background 0.15s ease;
 }
