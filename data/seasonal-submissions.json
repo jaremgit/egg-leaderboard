@@ -2,11 +2,35 @@
   "updatedAt": "2026-11-04",
   "entries": [
     {
+      "scope": "fall_2023",
+      "seasonName": "Fall 2023",
+      "rank": "87",
+      "player": "jarem.",
+      "score": "847870",
+      "source": "submission"
+    },
+    {
+      "scope": "fall_2024",
+      "seasonName": "Fall 2024",
+      "rank": "22",
+      "player": "jarem.",
+      "score": "928706",
+      "source": "submission"
+    },
+    {
       "scope": "fall_2024",
       "seasonName": "Fall 2024",
       "rank": "733",
       "player": "j3arem",
       "score": "689328",
+      "source": "submission"
+    },
+    {
+      "scope": "fall_2025",
+      "seasonName": "Fall 2025",
+      "rank": "25",
+      "player": "jarem.",
+      "score": "962874",
       "source": "submission"
     },
     {
@@ -26,11 +50,35 @@
       "source": "submission"
     },
     {
+      "scope": "fall_2026",
+      "seasonName": "Fall 2026",
+      "rank": "1083",
+      "player": "jarem.",
+      "score": "452874",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2023",
+      "seasonName": "Spring 2023",
+      "rank": "958",
+      "player": "jarem.",
+      "score": "249670",
+      "source": "submission"
+    },
+    {
       "scope": "spring_2023",
       "seasonName": "Spring 2023",
       "rank": "9123",
       "player": "j3arem",
       "score": "118444",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2024",
+      "seasonName": "Spring 2024",
+      "rank": "57",
+      "player": "jarem.",
+      "score": "841298",
       "source": "submission"
     },
     {
@@ -44,9 +92,25 @@
     {
       "scope": "spring_2025",
       "seasonName": "Spring 2025",
+      "rank": "17",
+      "player": "jarem.",
+      "score": "990099",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2025",
+      "seasonName": "Spring 2025",
       "rank": "490",
       "player": "j3arem",
       "score": "841550",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2026",
+      "seasonName": "Spring 2026",
+      "rank": "29",
+      "player": "jarem.",
+      "score": "975210",
       "source": "submission"
     },
     {
@@ -60,9 +124,25 @@
     {
       "scope": "summer_2023",
       "seasonName": "Summer 2023",
+      "rank": "375",
+      "player": "jarem.",
+      "score": "777626",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2023",
+      "seasonName": "Summer 2023",
       "rank": "37162",
       "player": "j3arem",
       "score": "36164",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2024",
+      "seasonName": "Summer 2024",
+      "rank": "18",
+      "player": "jarem.",
+      "score": "949037",
       "source": "submission"
     },
     {
@@ -76,9 +156,25 @@
     {
       "scope": "summer_2025",
       "seasonName": "Summer 2025",
+      "rank": "42",
+      "player": "jarem.",
+      "score": "1012414",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2025",
+      "seasonName": "Summer 2025",
       "rank": "489",
       "player": "j3arem",
       "score": "872535",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2026",
+      "seasonName": "Summer 2026",
+      "rank": "34",
+      "player": "jarem.",
+      "score": "1040735",
       "source": "submission"
     },
     {
@@ -90,11 +186,35 @@
       "source": "submission"
     },
     {
+      "scope": "winter_2024",
+      "seasonName": "Winter 2024",
+      "rank": "802",
+      "player": "jarem.",
+      "score": "730394",
+      "source": "submission"
+    },
+    {
+      "scope": "winter_2025",
+      "seasonName": "Winter 2025",
+      "rank": "39",
+      "player": "jarem.",
+      "score": "974447",
+      "source": "submission"
+    },
+    {
       "scope": "winter_2025",
       "seasonName": "Winter 2025",
       "rank": "516",
       "player": "j3arem",
       "score": "826612",
+      "source": "submission"
+    },
+    {
+      "scope": "winter_2026",
+      "seasonName": "Winter 2026",
+      "rank": "22",
+      "player": "jarem.",
+      "score": "973293",
       "source": "submission"
     },
     {
