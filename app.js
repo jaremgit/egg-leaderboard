@@ -713,6 +713,7 @@ function renderSeasonalLeaderboard(scope) {
 function selectSeasonalPlayer(playerName) {
   seasonalPlayerSearch.value = playerName;
   searchSeasonalPlayer(playerName);
+  scrollToElementById("seasonal-search-card");
 }
 
 function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
@@ -1853,9 +1854,6 @@ if (jumpLeaderboardButton) {
 
 allTimeViewButton.addEventListener("click", () => setLeaderboardView(false));
 seasonalViewButton.addEventListener("click", () => setLeaderboardView(true));
-seasonalSeasonSelect.addEventListener("change", () => {
-  renderSeasonalLeaderboard(seasonalSeasonSelect.value);
-});
 seasonalPlayerSearch.addEventListener("input", () => {
   searchSeasonalPlayer(seasonalPlayerSearch.value);
 });
