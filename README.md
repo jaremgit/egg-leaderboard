@@ -175,15 +175,19 @@ All Time data, ongoing All Time and seasonal pulls, and player self-submissions:
    these public, opt-in results with the canonical snapshots.
 4. **Player self-submission** - a visitor can click **Submit Your Score**,
    enter their EggInc ID (EID), preview their own rank/score, and confirm
-   publishing it. This is handled by the Cloudflare Worker in `worker/`,
-   which:
+   publishing it. All Time lookups are performed by the Cloudflare Worker;
+   Seasonal lookups are performed by the browser. At Seasonal confirmation,
+   the EID is sent to the Worker only for salted rate-limit hashing; it is
+   never logged, stored, or committed. For All Time submissions, the Worker:
    - Looks up the player's rank/score via the public `ei_worker` API.
-   - Rate-limits to one submission per EID per day (the EID itself is only
-	 ever hashed for this check - never logged, stored, or committed).
+   - Rate-limits to one submission per EID per day using its hash; the EID
+	 itself is never logged, stored, or committed.
    - Commits the entry into today's `data/<date>.json` via the GitHub
 	 Contents API.
    - Also caches the entry in Cloudflare KV so the site can show it
 	 immediately, without waiting for a Vercel rebuild.
+   - Also caches the entry in Cloudflare KV so the site can show it
+	   immediately, without waiting for a Vercel rebuild.
 
 The All Time pull and player self-submission write to the same `data/<date>.json` shape
 (`{ date, complete, observed_entries, entries: [{ rank, player, score,
@@ -192,6 +196,14 @@ way regardless of how it originated - `source` on each entry (e.g.
 `"ei_worker"` vs `"submission"`) is the only trace of where a given row came
 from. Seasonal snapshots have a separate per-scope shape and are not written
 to the All Time date archive.
+
+   For All Time submissions, the EID is sent to this project's Cloudflare
+   Worker, which uses it in memory to call `ei_worker`. For Seasonal submissions,
+   the browser calls `ei_worker` directly; only the public player name, ranks,
+   scores, and seasonal scopes are sent to this project's Worker after the user
+   confirms. EIDs are not logged, stored, in KV, or committed to GitHub. All Time
+   rate-limits use a salted EID hash; Seasonal rate-limits use a salted player-name
+   hash.
 
 ## Running the site locally
 
@@ -216,13 +228,25 @@ Worker configuration/code before enabling seasonal submissions on a live site.
 
 ## Privacy note
 
-When a visitor clicks "Look up" or confirms a submission, the EID is sent to
-this project's Cloudflare Worker, which uses it in memory to call the public
-`ei_worker` API. The EID is not logged, stored in KV, or committed to GitHub;
-the rate-limit key is a salted hash. Only public player names, ranks, scores,
-and seasonal scopes are written after explicit confirmation. The optional
-"Remember this ID" checkbox stores the EID in that visitor's browser local
-storage; it is sent to the Worker only during an active lookup or submission.
+For All Time submissions, the EID is sent to this project's Cloudflare
+Worker, which uses it in memory to call `ei_worker`. For Seasonal submissions,
+the browser calls `ei_worker` directly; only the public player name, ranks,
+scores, and seasonal scopes are sent to this project's Worker after the user
+confirms. EIDs are not logged, stored in KV, or committed to GitHub. All Time
+rate-limits use a salted EID hash; Seasonal rate-limits use a salted player-name
+hash. The optional "Remember this ID" checkbox stores the EID in the visitor's
+browser local storage.
+
+   All Time: EID sent to Worker → in-memory lookup → rate-limit hash (salted) →
+	   cache/store only if within limits.
+   Seasonal: browser → `ei_worker` → public name/rank/score → confirm → send
+	   only player name (salted) for rate-limit hash → cache/store only if within
+	   limits.
+
+   Rate-limiting is per-EID for All Time, per-player-name for Seasonal.
+
+   EIDs are never stored in KV or committed to GitHub; only hashed for rate-limit
+   checks.
 
 ## Contributing / feedback
 

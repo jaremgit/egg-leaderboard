@@ -35,38 +35,33 @@ function createEnv() {
   };
 }
 
-function apiFetch({ failScope = null, writes = [] } = {}) {
+function apiFetch({ catalog = seasons, writes = [] } = {}) {
   return async (input, init = {}) => {
     const url = new URL(input);
-    if (url.hostname === "ei-worker.test") {
-      if (url.pathname === "/player_summary") {
-        return Response.json({ user_name: "SeasonTester" });
-      }
-      if (url.pathname === "/leaderboard_info") {
-        return Response.json({ allTimeScope: "ALL_TIME", seasonsList: seasons });
-      }
-      if (url.pathname === "/leaderboard") {
-        const scope = url.searchParams.get("scope");
-        if (scope === failScope) return new Response("failed", { status: 503 });
-        return Response.json({
-          topEntriesList: [{ rank: 1, alias: "SomeoneElse", score: 999999 }],
-          count: 39246,
-          rank: scope === "spring_2025" ? 134 : 99,
-          score: scope === "spring_2025" ? 800000 : 700000
-        });
-      }
-    }
-
     if (url.hostname === "api.github.com") {
       if (init.method === "PUT") {
         writes.push({ url, body: JSON.parse(init.body) });
         return Response.json({ ok: true });
+      }
+      if (url.pathname.endsWith("/data/seasonal/index.json")) {
+        return Response.json({
+          content: Buffer.from(JSON.stringify({ seasons: catalog.filter(season => season.scope !== "ALL_TIME") })).toString("base64")
+        });
       }
       return new Response("not found", { status: 404 });
     }
 
     throw new Error(`Unexpected request: ${url}`);
   };
+}
+
+const confirmedResults = [
+  { scope: "spring_2025", rank: "134", score: "800000" },
+  { scope: "summer_2025", rank: "99", score: "700000" }
+];
+
+function confirmation(player = "SeasonTester", results = confirmedResults) {
+  return { action: "confirm", eid: "EI1234567890123456", player, results };
 }
 
 async function callSeasonal(worker, env, body) {
@@ -78,23 +73,37 @@ async function callSeasonal(worker, env, body) {
   return worker.fetch(request, env);
 }
 
-test("seasonal preview returns requester top-level ranks, including outside top 100, without publishing", async () => {
+test("seasonal endpoint rejects preview requests and never performs EID lookups", async () => {
   const workerModule = await loadWorker();
   const worker = workerModule.default;
   const env = createEnv();
   const writes = [];
-  globalThis.fetch = apiFetch({ writes });
+  globalThis.fetch = async () => {
+    throw new Error("Worker must not call ei_worker from the seasonal submit route");
+  };
 
   const response = await callSeasonal(worker, env, { eid: "EI1234567890123456", action: "preview" });
   const result = await response.json();
 
-  assert.equal(response.status, 200);
-  assert.equal(result.player, "SeasonTester");
-  assert.equal(result.results.length, 2);
-  assert.equal(result.results[0].rank, "134");
-  assert.equal(result.results[0].score, "800000");
-  assert.equal(result.results[1].rank, "99");
+  assert.equal(response.status, 400);
+  assert.equal(result.ok, false);
   assert.equal(writes.length, 0);
+});
+
+test("seasonal submission rejects malformed EIDs before API or GitHub calls", async () => {
+  const worker = (await loadWorker()).default;
+  const env = createEnv();
+  globalThis.fetch = async () => {
+    throw new Error("Should not call external API for invalid EID");
+  };
+
+  const response = await callSeasonal(worker, env, {
+    ...confirmation(),
+    eid: "not-an-eid"
+  });
+  const result = await response.json();
+  assert.equal(response.status, 400);
+  assert.equal(result.ok, false);
 });
 
 test("seasonal confirm writes public entries only to the experimental supplemental archive", async () => {
@@ -103,7 +112,7 @@ test("seasonal confirm writes public entries only to the experimental supplement
   const writes = [];
   globalThis.fetch = apiFetch({ writes });
 
-  const response = await callSeasonal(worker, env, { eid: "EI1234567890123456", action: "confirm" });
+  const response = await callSeasonal(worker, env, confirmation());
   const result = await response.json();
 
   assert.equal(response.status, 200);
@@ -126,6 +135,13 @@ test("seasonal confirm updates an existing player/scope row without duplicating 
   globalThis.fetch = async (input, init = {}) => {
     const url = new URL(input);
     if (url.hostname === "api.github.com" && init.method !== "PUT") {
+      if (url.pathname.endsWith("/data/seasonal/index.json")) {
+        return Response.json({
+          content: Buffer.from(JSON.stringify({
+            seasons: seasons.filter(season => season.scope !== "ALL_TIME")
+          })).toString("base64")
+        });
+      }
       const content = Buffer.from(JSON.stringify({
         updatedAt: "2025-01-01",
         entries: [{
@@ -142,37 +158,42 @@ test("seasonal confirm updates an existing player/scope row without duplicating 
     return fetchApi(input, init);
   };
 
-  const response = await callSeasonal(worker, env, { eid: "EI1234567890123456", action: "confirm" });
+  const response = await callSeasonal(worker, env, confirmation());
   const archive = JSON.parse(Buffer.from(writes[0].body.content, "base64").toString("utf8"));
   assert.equal(response.status, 200);
   assert.equal(archive.entries.filter(entry => entry.scope === "spring_2025" && entry.player.toLowerCase() === "seasontester").length, 1);
   assert.equal(archive.entries.find(entry => entry.scope === "spring_2025").rank, "134");
 });
 
-test("failed seasonal lookup returns an error and does not partially publish", async () => {
+test("invalid seasonal results return an error and do not partially publish", async () => {
   const worker = (await loadWorker()).default;
   const env = createEnv();
   const writes = [];
-  globalThis.fetch = apiFetch({ failScope: "summer_2025", writes });
+  globalThis.fetch = apiFetch({ writes });
 
-  const response = await callSeasonal(worker, env, { eid: "EI1234567890123456", action: "confirm" });
+  const incompleteResults = [{ scope: "spring_2025", rank: "134", score: "800000" }];
+  const response = await callSeasonal(worker, env, confirmation("SeasonTester", incompleteResults));
   const result = await response.json();
 
   assert.equal(response.status, 502);
   assert.equal(result.ok, false);
-  assert.match(result.error, /Summer 2025/);
+  assert.match(result.error, /catalog|season/i);
   assert.equal(writes.length, 0);
 });
 
-test("seasonal submission rejects malformed EIDs before making API calls", async () => {
+test("seasonal submission rejects malformed public results before writing", async () => {
   const worker = (await loadWorker()).default;
   const env = createEnv();
-  globalThis.fetch = async () => {
-    throw new Error("Should not call external API for invalid EID");
-  };
+  const writes = [];
+  globalThis.fetch = apiFetch({ writes });
 
-  const response = await callSeasonal(worker, env, { eid: "not-an-eid", action: "preview" });
+  const invalidResults = [
+    { scope: "spring_2025", rank: "0", score: "800000" },
+    { scope: "summer_2025", rank: "99", score: "700000" }
+  ];
+  const response = await callSeasonal(worker, env, confirmation("SeasonTester", invalidResults));
   const result = await response.json();
-  assert.equal(response.status, 400);
+  assert.equal(response.status, 502);
   assert.equal(result.ok, false);
+  assert.equal(writes.length, 0);
 });

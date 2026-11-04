@@ -2071,29 +2071,15 @@ if (seasonalSubmitLookupForm) {
     seasonalSubmitPreview.classList.add("hidden");
     setSeasonalSubmitStatus("Looking up your seasonal results...", "status");
     try {
-      const response = await fetch(SEASONAL_SUBMIT_WORKER_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eid, action: "preview" })
-      });
-      const result = await response.json();
-      if (!response.ok || !result.ok) {
-        throw new Error(result.error || "Seasonal lookup failed. Please try again.");
-      }
-
-      cachedSeasonalSubmitResults = { eid, player: result.player, results: result.results };
-      renderSeasonalSubmitPreview(result.player, result.results);
+      const { player, results } = await fetchSeasonalEidResults(eid);
+      cachedSeasonalSubmitResults = { eid, player, results };
+      renderSeasonalSubmitPreview(player, results);
       if (seasonalSaveEidCheckbox.checked) {
         addSavedEid(eid);
-        updateSavedEidUsername(eid, result.player);
+        updateSavedEidUsername(eid, player);
       }
-      setSeasonalSubmitStatus(
-        result.alreadySubmittedToday
-          ? "Preview ready. This ID has already submitted seasonal results today."
-          : "Preview only: nothing is published unless you confirm below.",
-        "status"
-      );
-      seasonalSubmitConfirmButton.disabled = Boolean(result.alreadySubmittedToday);
+      setSeasonalSubmitStatus("Preview only: nothing is published unless you confirm below.", "status");
+      seasonalSubmitConfirmButton.disabled = false;
     } catch (error) {
       setSeasonalSubmitStatus(error.message, "status error");
     } finally {
@@ -2102,18 +2088,85 @@ if (seasonalSubmitLookupForm) {
   });
 }
 
+async function fetchSeasonalEidResults(eid) {
+  const apiBase = "https://ei_worker.tylertms.workers.dev";
+  const nameResponse = await fetch(`${apiBase}/player_summary?eid=${encodeURIComponent(eid)}`);
+  if (!nameResponse.ok) {
+    throw new Error(`Could not look up the player name (HTTP ${nameResponse.status}).`);
+  }
+  const nameData = await nameResponse.json();
+  const player = typeof nameData.user_name === "string" ? nameData.user_name.trim() : "";
+  if (nameData.error || !player) {
+    throw new Error("Could not determine the player's name from that EggInc ID.");
+  }
+
+  const infoResponse = await fetch(`${apiBase}/leaderboard_info`);
+  if (!infoResponse.ok) {
+    throw new Error(`Could not load seasonal leaderboard scopes (HTTP ${infoResponse.status}).`);
+  }
+  const info = await infoResponse.json();
+  if (!Array.isArray(info.seasonsList)) {
+    throw new Error("The seasonal leaderboard catalog has an invalid format.");
+  }
+  const allTimeScope = String(info.allTimeScope || "ALL_TIME").toLowerCase();
+  const seasons = info.seasonsList.filter(season =>
+    season && typeof season.scope === "string" && /^[a-zA-Z0-9_-]+$/.test(season.scope.trim()) &&
+    season.scope.trim().toLowerCase() !== allTimeScope &&
+    season.scope.trim().toLowerCase() !== "all_time" &&
+    typeof season.name === "string" && season.name.trim()
+  );
+  if (seasons.length === 0 || seasons.length > 64) {
+    throw new Error("The seasonal leaderboard catalog has no valid scopes or exceeds the supported limit.");
+  }
+
+  const results = await Promise.all(seasons.map(async season => {
+    const url = new URL(`${apiBase}/leaderboard`);
+    url.searchParams.set("eid", eid);
+    url.searchParams.set("scope", season.scope.trim());
+    url.searchParams.set("grade", "5");
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Seasonal lookup failed for ${season.name} (HTTP ${response.status}).`);
+    }
+    const data = await response.json();
+    const rankValue = data.rank;
+    const scoreValue = data.score;
+    const rank = rankValue === null || rankValue === undefined || rankValue === "" ? NaN : Number(rankValue);
+    const score = scoreValue === null || scoreValue === undefined || scoreValue === "" ? NaN : Number(scoreValue);
+    if (!Number.isSafeInteger(rank) || rank < 1 || !Number.isFinite(score) || score < 0) {
+      return { scope: season.scope.trim(), name: season.name.trim(), rank: null, score: null };
+    }
+    return {
+      scope: season.scope.trim(),
+      name: season.name.trim(),
+      rank: String(rank),
+      score: String(scoreValue)
+    };
+  }));
+
+  if (!results.some(result => result.rank !== null)) {
+    throw new Error("No seasonal rankings were found for this player.");
+  }
+  return { player, results };
+}
+
 if (seasonalSubmitConfirmButton) {
   seasonalSubmitConfirmButton.addEventListener("click", async () => {
     if (!cachedSeasonalSubmitResults) return;
     seasonalSubmitConfirmButton.disabled = true;
     seasonalSubmitAgainButton.disabled = true;
     seasonalSubmitCancelButton.disabled = true;
-    setSeasonalSubmitStatus("Rechecking and submitting your seasonal results...", "status");
+    setSeasonalSubmitStatus("Submitting your previewed seasonal results...", "status");
     try {
       const response = await fetch(SEASONAL_SUBMIT_WORKER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eid: cachedSeasonalSubmitResults.eid, action: "confirm" })
+        body: JSON.stringify({
+          action: "confirm",
+          eid: cachedSeasonalSubmitResults.eid,
+          player: cachedSeasonalSubmitResults.player,
+          results: cachedSeasonalSubmitResults.results
+        })
       });
       const result = await response.json();
       if (!response.ok || !result.ok) {

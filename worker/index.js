@@ -201,128 +201,107 @@ export default {
 };
 
 async function handleSeasonalSubmission(request, env) {
-  let eid;
-  let action;
+  let body;
   try {
-    const body = await request.json();
-    eid = typeof body.eid === "string" ? body.eid.trim().toUpperCase() : "";
-    action = body.action === "confirm" ? "confirm" : "preview";
+    body = await request.json();
   } catch {
     return withCors(jsonError("Request body must be JSON.", 400));
   }
 
+  if (body.action !== "confirm") {
+    return withCors(jsonError("Seasonal results must be explicitly confirmed.", 400));
+  }
+
+  const eid = typeof body.eid === "string" ? body.eid.trim().toUpperCase() : "";
+  const player = typeof body.player === "string" ? body.player.trim() : "";
+  const results = body.results;
   if (!EID_PATTERN.test(eid)) {
     return withCors(jsonError("That doesn't look like a valid EggInc ID.", 400));
+  }
+  if (!player || player.length > 100 || !Array.isArray(results) || results.length === 0 || results.length > 64) {
+    return withCors(jsonError("The confirmed seasonal results are invalid.", 400));
   }
 
   const hash = await hashEid(eid, env.SUBMIT_HASH_SALT);
   const rateLimitKey = `seasonal-submit:${hash}`;
-  if (action === "confirm" && env.DISABLE_RATE_LIMIT !== "true" && await env.RATE_LIMIT_KV.get(rateLimitKey)) {
+  if (env.DISABLE_RATE_LIMIT !== "true" && await env.RATE_LIMIT_KV.get(rateLimitKey)) {
     return withCors(jsonError("You've already submitted seasonal results today. Please try again tomorrow.", 429));
   }
 
   try {
-    const player = await lookupPlayerName(eid, env);
-    const results = await lookupSeasonalResults(eid, env, player);
-    if (!results.some(result => result.rank !== null)) {
+    const validatedResults = await validateSeasonalResults(results, player, env);
+    if (validatedResults.length === 0) {
       return withCors(jsonError("No seasonal rankings were found for this player.", 404));
     }
 
-    if (action === "confirm") {
-      await commitSeasonalEntriesToGitHub(results, env);
-    }
-    if (action === "confirm" && env.DISABLE_RATE_LIMIT !== "true") {
+    await commitSeasonalEntriesToGitHub(validatedResults, env);
+    if (env.DISABLE_RATE_LIMIT !== "true") {
       await env.RATE_LIMIT_KV.put(rateLimitKey, "1", { expirationTtl: 86400 });
     }
 
-    return withCors(new Response(JSON.stringify({ ok: true, player, results, alreadySubmittedToday: Boolean(action === "preview" && env.DISABLE_RATE_LIMIT !== "true" && await env.RATE_LIMIT_KV.get(rateLimitKey)) }), {
+    return withCors(new Response(JSON.stringify({ ok: true, player, results: validatedResults }), {
       status: 200,
       headers: { "Content-Type": "application/json" }
     }));
   } catch (error) {
     return withCors(jsonError(error.message || "Could not save seasonal results.", 502));
-  } finally {
-    eid = "";
   }
 }
 
-async function lookupPlayerName(eid, env) {
-  const base = env.EI_WORKER_BASE || "https://ei_worker.tylertms.workers.dev";
-  const response = await fetch(`${base}/player_summary?eid=${encodeURIComponent(eid)}`, {
-    signal: AbortSignal.timeout(30000),
-    cf: { cacheTtl: 0, mirage: false }
+async function validateSeasonalResults(results, player, env) {
+  const owner = env.GITHUB_OWNER;
+  const repo = env.GITHUB_REPO;
+  const branch = env.SEASONAL_GITHUB_BRANCH || "experimental";
+  const catalogUrl = `https://api.github.com/repos/${owner}/${repo}/contents/data/seasonal/index.json?ref=${encodeURIComponent(branch)}`;
+  const response = await fetch(catalogUrl, {
+    headers: {
+      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "egg-leaderboard-seasonal-submit-worker"
+    }
   });
   if (!response.ok) {
-    throw new Error(`Could not look up the player name (HTTP ${response.status}).`);
+    throw new Error(`Could not validate seasonal scopes from the ${branch} archive (HTTP ${response.status}).`);
   }
-  const summary = await response.json();
-  if (summary?.error || typeof summary?.user_name !== "string" || !summary.user_name.trim()) {
-    throw new Error("Could not determine the player's name from that EggInc ID.");
+  const file = await response.json();
+  let catalog;
+  try {
+    catalog = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(file.content.replace(/\n/g, "")), char => char.charCodeAt(0))));
+  } catch {
+    throw new Error("The seasonal archive catalog is invalid.");
   }
-  return summary.user_name.trim();
-}
-
-async function lookupSeasonalResults(eid, env, player) {
-  const base = env.EI_WORKER_BASE || "https://ei_worker.tylertms.workers.dev";
-  const response = await fetch(`${base}/leaderboard_info`, {
-    signal: AbortSignal.timeout(30000),
-    cf: { cacheTtl: 0, mirage: false }
-  });
-  if (!response.ok) {
-    throw new Error(`Could not validate seasonal scopes (HTTP ${response.status}).`);
+  if (!Array.isArray(catalog?.seasons)) {
+    throw new Error("The seasonal archive catalog is invalid.");
   }
-  const info = await response.json();
-  if (!Array.isArray(info?.seasonsList)) {
-    throw new Error("The seasonal leaderboard catalog has an invalid format.");
-  }
-  const allTimeScope = String(info.allTimeScope || "ALL_TIME").toLowerCase();
-  const seasons = info.seasonsList
+  const seasons = new Map(catalog.seasons
     .filter(season => typeof season?.scope === "string" &&
       /^[a-zA-Z0-9_-]+$/.test(season.scope.trim()) &&
-      season.scope.trim().toLowerCase() !== allTimeScope &&
       season.scope.trim().toLowerCase() !== "all_time" &&
       typeof season.name === "string")
-    .map(season => ({ scope: season.scope.trim(), name: season.name.trim() }));
-  if (seasons.length === 0 || seasons.length > 64) {
+    .map(season => [season.scope.trim(), season.name.trim()]));
+  if (seasons.size === 0 || seasons.size > 64 || results.length !== seasons.size) {
     throw new Error("The seasonal leaderboard catalog has no valid scopes or exceeds the supported limit.");
   }
 
-  const results = new Array(seasons.length);
-  let nextIndex = 0;
-  let failure = null;
-  async function processNext() {
-    while (nextIndex < seasons.length && !failure) {
-      const index = nextIndex++;
-      const season = seasons[index];
-      const endpoint = new URL("/leaderboard", base);
-      endpoint.searchParams.set("eid", eid);
-      endpoint.searchParams.set("scope", season.scope);
-      endpoint.searchParams.set("grade", env.EI_GRADE || "5");
-      try {
-        const response = await fetch(endpoint, {
-          signal: AbortSignal.timeout(30000),
-          cf: { cacheTtl: 0, mirage: false }
-        });
-        if (!response.ok) {
-          throw new Error(`Seasonal lookup failed for ${season.name} (HTTP ${response.status}).`);
-        }
-        const data = await response.json();
-      const rankValue = data?.rank;
-      const scoreValue = data?.score;
-      const rank = rankValue === null || rankValue === undefined || rankValue === "" ? NaN : Number(rankValue);
-      const score = scoreValue === null || scoreValue === undefined || scoreValue === "" ? NaN : Number(scoreValue);
-        results[index] = Number.isSafeInteger(rank) && rank >= 1 && Number.isFinite(score) && score >= 0
-          ? { scope: season.scope, name: season.name, rank: String(rank), score: String(scoreValue), player }
-          : { scope: season.scope, name: season.name, rank: null, score: null, player };
-      } catch (error) {
-        failure = error;
-      }
+  const seen = new Set();
+  const validated = [];
+  for (const result of results) {
+    const scope = typeof result?.scope === "string" ? result.scope.trim() : "";
+    if (!seasons.has(scope) || seen.has(scope)) {
+      throw new Error("The seasonal results contain an unknown or duplicate season.");
     }
-  }
+    seen.add(scope);
+    if (result.rank === null && result.score === null) continue;
 
-  await Promise.all(Array.from({ length: Math.min(3, seasons.length) }, () => processNext()));
-  if (failure) throw failure;
-  return results;
+    const rank = Number(result.rank);
+    const score = Number(result.score);
+    if (!Number.isSafeInteger(rank) || rank < 1 || !Number.isFinite(score) || score < 0) {
+      throw new Error(`The submitted result for ${seasons.get(scope)} is invalid.`);
+    }
+    validated.push({ scope, name: seasons.get(scope), rank: String(rank), score: String(result.score), player });
+  }
+  if (seen.size !== seasons.size) throw new Error("The seasonal results are missing one or more seasons.");
+  return validated;
 }
 
 async function commitSeasonalEntriesToGitHub(results, env) {

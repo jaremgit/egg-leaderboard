@@ -4,12 +4,12 @@ The Cloudflare Worker provides separate All Time and Seasonal submission routes.
 
 ## Seasonal submission behavior
 
-- The Seasonal modal calls `POST /submit-seasonal` with the visitor's EID for preview and confirmation. The Worker uses the EID only in memory to call `player_summary` and each Grade 5 seasonal `leaderboard` scope; it never logs, stores, or commits the EID.
-- Preview (`action: "preview"`) returns the player's name plus each seasonal scope's top-level `rank` and `score`. Those fields represent the requesting EID even when the player is outside `topEntriesList`. A missing rank or score is returned as `null` for that season.
-- Confirm (`action: "confirm"`) repeats the lookups, writes only results with a valid rank/score to `data/seasonal-submissions.json`, and rate-limits the EID separately from All Time submissions.
+- The browser calls `player_summary`, `leaderboard_info`, and every Grade 5 seasonal `leaderboard` scope directly for preview. `/submit-seasonal` accepts `action: "confirm"`, the EID for rate-limit hashing, and the public player name and seasonal results; it does not query ei_worker server-to-server.
+- The browser uses each seasonal leaderboard response's top-level `rank` and `score`, which represent the requesting EID even when it is outside `topEntriesList`. Missing rank/score values are shown as unranked and are not published.
+- On confirmation, the browser sends the EID with the public results so the Worker can rate-limit by its salted hash. The Worker does not query ei_worker; it validates every result against the experimental branch's seasonal scope catalog, then writes valid ranked results to `data/seasonal-submissions.json`. The EID is not logged, stored in KV, or written to GitHub.
 - The seasonal supplemental archive is separate from `data/seasonal/<scope>.json`; weekly top-100 refreshes do not overwrite or mix supplemental entries into the canonical top-100 snapshots.
 - The static frontend merges supplemental entries into the seasonal leaderboard and player history, deduplicating players already in the canonical top 100.
-- The EID's salted hash is used for an independent once-per-day Seasonal rate limit; the EID itself is not used as the KV key.
+- The EID is sent directly to ei_worker during preview and is sent to this project's Worker only at confirmation for the rate-limit hash. It is not persisted by either service in this project's archive.
 
 ## Configuration and deployment
 
