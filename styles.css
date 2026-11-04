@@ -809,6 +809,62 @@ select:focus {
   display: none;
 }
 
+.seasonal-submit-preview {
+  margin-top: 16px;
+}
+
+.seasonal-submit-preview h3 {
+  margin: 0 0 12px;
+}
+
+.seasonal-submit-chart-wrapper {
+  height: 230px;
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-raised);
+}
+
+.seasonal-submit-results {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  margin-bottom: 14px;
+  overflow: auto;
+}
+
+.seasonal-submit-result-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(90px, auto) minmax(80px, auto);
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-raised);
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.seasonal-submit-result-row span:last-child {
+  color: var(--gold);
+  text-align: right;
+}
+
+.seasonal-submit-preview .submit-preview-actions {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 480px) {
+  .seasonal-submit-result-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .seasonal-submit-result-row span:last-child {
+    grid-column: 2;
+  }
+}
+
 .submit-preview-last-seen {
   grid-column: 1 / -1;
   margin: 4px 0 0;

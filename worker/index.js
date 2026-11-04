@@ -72,6 +72,10 @@ export default {
       return withCors(jsonError("Only POST requests are supported.", 405));
     }
 
+    if (url.pathname === "/submit-seasonal") {
+      return handleSeasonalSubmission(request, env);
+    }
+
     if (url.pathname !== "/submit") {
       return withCors(jsonError("Unknown endpoint.", 404));
     }
@@ -197,6 +201,208 @@ export default {
     );
   }
 };
+
+async function handleSeasonalSubmission(request, env) {
+  let eid;
+  let action;
+  try {
+    const body = await request.json();
+    eid = typeof body.eid === "string" ? body.eid.trim().toUpperCase() : "";
+    action = body.action === "confirm" ? "confirm" : "preview";
+  } catch {
+    return withCors(jsonError("Request body must be JSON.", 400));
+  }
+
+  if (!EID_PATTERN.test(eid)) {
+    return withCors(jsonError("That doesn't look like a valid EggInc ID.", 400));
+  }
+
+  const hash = await hashEid(eid, env.SUBMIT_HASH_SALT);
+  const rateLimitKey = `seasonal-submit:${hash}`;
+  if (action === "confirm" && env.DISABLE_RATE_LIMIT !== "true" && await env.RATE_LIMIT_KV.get(rateLimitKey)) {
+    return withCors(jsonError("You've already submitted seasonal results today. Please try again tomorrow.", 429));
+  }
+
+  try {
+    const player = await lookupPlayerName(eid, env);
+    const results = await lookupSeasonalResults(eid, env, player);
+    if (!results.some(result => result.rank !== null)) {
+      return withCors(jsonError("No seasonal rankings were found for this player.", 404));
+    }
+
+    if (action === "confirm") {
+      await commitSeasonalEntriesToGitHub(results, env);
+    }
+    if (action === "confirm" && env.DISABLE_RATE_LIMIT !== "true") {
+      await env.RATE_LIMIT_KV.put(rateLimitKey, "1", { expirationTtl: 86400 });
+    }
+
+    return withCors(new Response(JSON.stringify({ ok: true, player, results, alreadySubmittedToday: Boolean(action === "preview" && env.DISABLE_RATE_LIMIT !== "true" && await env.RATE_LIMIT_KV.get(rateLimitKey)) }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    }));
+  } catch (error) {
+    return withCors(jsonError(error.message || "Could not save seasonal results.", 502));
+  } finally {
+    eid = "";
+  }
+}
+
+async function lookupPlayerName(eid, env) {
+  const base = env.EI_WORKER_BASE || "https://ei_worker.tylertms.workers.dev";
+  const response = await fetch(`${base}/player_summary?eid=${encodeURIComponent(eid)}`, {
+    signal: AbortSignal.timeout(30000),
+    cf: { cacheTtl: 0, mirage: false }
+  });
+  if (!response.ok) {
+    throw new Error(`Could not look up the player name (HTTP ${response.status}).`);
+  }
+  const summary = await response.json();
+  if (summary?.error || typeof summary?.user_name !== "string" || !summary.user_name.trim()) {
+    throw new Error("Could not determine the player's name from that EggInc ID.");
+  }
+  return summary.user_name.trim();
+}
+
+async function lookupSeasonalResults(eid, env, player) {
+  const base = env.EI_WORKER_BASE || "https://ei_worker.tylertms.workers.dev";
+  const response = await fetch(`${base}/leaderboard_info`, {
+    signal: AbortSignal.timeout(30000),
+    cf: { cacheTtl: 0, mirage: false }
+  });
+  if (!response.ok) {
+    throw new Error(`Could not validate seasonal scopes (HTTP ${response.status}).`);
+  }
+  const info = await response.json();
+  if (!Array.isArray(info?.seasonsList)) {
+    throw new Error("The seasonal leaderboard catalog has an invalid format.");
+  }
+  const allTimeScope = String(info.allTimeScope || "ALL_TIME").toLowerCase();
+  const seasons = info.seasonsList
+    .filter(season => typeof season?.scope === "string" &&
+      /^[a-zA-Z0-9_-]+$/.test(season.scope.trim()) &&
+      season.scope.trim().toLowerCase() !== allTimeScope &&
+      season.scope.trim().toLowerCase() !== "all_time" &&
+      typeof season.name === "string")
+    .map(season => ({ scope: season.scope.trim(), name: season.name.trim() }));
+  if (seasons.length === 0 || seasons.length > 64) {
+    throw new Error("The seasonal leaderboard catalog has no valid scopes or exceeds the supported limit.");
+  }
+
+  const results = new Array(seasons.length);
+  let nextIndex = 0;
+  let failure = null;
+  async function processNext() {
+    while (nextIndex < seasons.length && !failure) {
+      const index = nextIndex++;
+      const season = seasons[index];
+      const endpoint = new URL("/leaderboard", base);
+      endpoint.searchParams.set("eid", eid);
+      endpoint.searchParams.set("scope", season.scope);
+      endpoint.searchParams.set("grade", env.EI_GRADE || "5");
+      try {
+        const response = await fetch(endpoint, {
+          signal: AbortSignal.timeout(30000),
+          cf: { cacheTtl: 0, mirage: false }
+        });
+        if (!response.ok) {
+          throw new Error(`Seasonal lookup failed for ${season.name} (HTTP ${response.status}).`);
+        }
+        const data = await response.json();
+        const rank = Number(data?.rank);
+        const score = Number(data?.score);
+        results[index] = Number.isSafeInteger(rank) && rank >= 1 && Number.isFinite(score) && score >= 0
+          ? { scope: season.scope, name: season.name, rank: String(rank), score: String(score), player }
+          : { scope: season.scope, name: season.name, rank: null, score: null, player };
+      } catch (error) {
+        failure = error;
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(3, seasons.length) }, () => processNext()));
+  if (failure) throw failure;
+  return results;
+}
+
+async function commitSeasonalEntriesToGitHub(results, env) {
+  const token = env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error("Server is misconfigured (missing GitHub token).");
+  }
+  const owner = env.GITHUB_OWNER;
+  const repo = env.GITHUB_REPO;
+  const branch = env.SEASONAL_GITHUB_BRANCH || "experimental";
+  const filePath = "data/seasonal-submissions.json";
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "User-Agent": "egg-leaderboard-seasonal-submit-worker"
+  };
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const getResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${encodeURIComponent(branch)}`,
+      { headers }
+    );
+    let existing = { entries: [] };
+    let sha;
+    if (getResponse.status === 200) {
+      const file = await getResponse.json();
+      sha = file.sha;
+      existing = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(file.content.replace(/\n/g, "")), char => char.charCodeAt(0))));
+      if (!Array.isArray(existing.entries)) {
+        throw new Error("The seasonal submissions archive is invalid.");
+      }
+    } else if (getResponse.status !== 404) {
+      throw new Error("Couldn't read the seasonal submissions archive.");
+    }
+
+    const entries = Array.isArray(existing.entries) ? [...existing.entries] : [];
+    for (const result of results) {
+      if (result.rank === null) continue;
+      const next = {
+        scope: result.scope,
+        seasonName: result.name,
+        rank: result.rank,
+        player: result.player,
+        score: result.score,
+        source: "submission"
+      };
+      const existingIndex = entries.findIndex(entry =>
+        entry.scope === next.scope && String(entry.player).toLowerCase() === next.player.toLowerCase()
+      );
+      if (existingIndex >= 0) entries[existingIndex] = next;
+      else entries.push(next);
+    }
+
+    const archive = {
+      updatedAt: new Date().toISOString().slice(0, 10),
+      entries: entries.sort((a, b) => a.scope.localeCompare(b.scope) ||
+        Number(a.rank) - Number(b.rank) || a.player.localeCompare(b.player))
+    };
+    const bytes = new TextEncoder().encode(JSON.stringify(archive, null, 2));
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    }
+    const putResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "chore: update seasonal submissions",
+        content: btoa(binary),
+        branch,
+        ...(sha ? { sha } : {})
+      })
+    });
+    if (putResponse.ok) return;
+    if (putResponse.status !== 409 && putResponse.status !== 422) {
+      throw new Error("Couldn't save seasonal results. Please try again later.");
+    }
+  }
+  throw new Error("Seasonal results changed during submission. Please try again.");
+}
 
 /* -------------------------------------------------------------------------
    Helpers

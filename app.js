@@ -101,6 +101,19 @@ const seasonalPlayerHistoryBody = document.getElementById("seasonal-player-histo
 const seasonalSubmitScoreButton = document.getElementById("seasonal-submit-score-button");
 const seasonalSubmitModal = document.getElementById("seasonal-submit-modal");
 const closeSeasonalSubmitModalButton = document.getElementById("close-seasonal-submit-modal");
+const seasonalSubmitLookupForm = document.getElementById("seasonal-submit-lookup-form");
+const seasonalSubmitEidInput = document.getElementById("seasonal-submit-eid");
+const seasonalSubmitLookupButton = document.getElementById("seasonal-submit-lookup-button");
+const seasonalSaveEidCheckbox = document.getElementById("seasonal-save-eid-checkbox");
+const seasonalSubmitLookupSection = document.getElementById("seasonal-submit-lookup-section");
+const seasonalSubmitStatus = document.getElementById("seasonal-submit-status");
+const seasonalSubmitPreview = document.getElementById("seasonal-submit-preview");
+const seasonalSubmitPlayer = document.getElementById("seasonal-submit-player");
+const seasonalSubmitResults = document.getElementById("seasonal-submit-results");
+const seasonalSubmitChartCanvas = document.getElementById("seasonal-submit-chart");
+const seasonalSubmitConfirmButton = document.getElementById("seasonal-submit-confirm-button");
+const seasonalSubmitAgainButton = document.getElementById("seasonal-submit-again-button");
+const seasonalSubmitCancelButton = document.getElementById("seasonal-submit-cancel-button");
 
 const disclaimerModal = document.getElementById("disclaimer-modal");
 const closeDisclaimerModalButton = document.getElementById("close-disclaimer-modal");
@@ -272,14 +285,19 @@ let dateEntryCountMap = {};    // date -> number of entries (used by heatmap)
 let dataFilterMode = "raw";    // "raw" | "weekly" | "weekly-peak" | "monthly" | "monthly-peak"
 let seasonalCatalog = null;
 let seasonalLeaderboards = [];
+let seasonalSubmissions = [];
+let currentSeasonalScope = null;
 let seasonalDataLoaded = false;
 let seasonalDataLoading = null;
+let cachedSeasonalSubmitResults = null;
+let seasonalSubmitChart = null;
 
 // URL of the Cloudflare Worker that privately looks up a submitted EggInc ID
 // and publishes just the resulting name/rank/score (see worker/README.md
 // for how to deploy your own and get this URL). Leave as-is if you haven't
 // deployed the Worker yet - the submission form will just show an error.
 const SUBMIT_WORKER_URL = "https://egg-leaderboard-submit.jarem.workers.dev/submit";
+const SEASONAL_SUBMIT_WORKER_URL = "https://egg-leaderboard-submit.jarem.workers.dev/submit-seasonal";
 
 // Store pre-fetched player data from the lookup phase so we can use it in confirm
 let cachedSubmitData = null;
@@ -603,6 +621,7 @@ async function loadSeasonalLeaderboards() {
     }));
 
     seasonalLeaderboards = loadedSeasons;
+    await loadSeasonalSubmissions();
     const selectedScope = loadedSeasons.some(season => season.scope === catalog.currentScope)
       ? catalog.currentScope
       : loadedSeasons[loadedSeasons.length - 1].scope;
@@ -611,6 +630,27 @@ async function loadSeasonalLeaderboards() {
     if (seasonalPlayerSearch.value.trim()) {
       searchSeasonalPlayer(seasonalPlayerSearch.value);
     }
+
+async function loadSeasonalSubmissions(forceRefresh = false) {
+  try {
+    const url = forceRefresh
+      ? `data/seasonal-submissions.json?refresh=${Date.now()}`
+      : "data/seasonal-submissions.json";
+    const response = await fetch(url, { cache: forceRefresh ? "no-store" : "default" });
+    if (response.status === 404) {
+      seasonalSubmissions = [];
+      return;
+    }
+    if (!response.ok) {
+      throw new Error("Could not load seasonal submissions.");
+    }
+    const archive = await response.json();
+    seasonalSubmissions = Array.isArray(archive.entries) ? archive.entries : [];
+  } catch (error) {
+    console.error("Failed to load seasonal submissions:", error);
+    seasonalSubmissions = [];
+  }
+}
   })();
 
   try {
@@ -677,6 +717,7 @@ function renderSeasonButtons(seasons, selectedScope) {
 }
 
 function renderSeasonalLeaderboard(scope) {
+  currentSeasonalScope = scope;
   const season = seasonalLeaderboards.find(item => item.scope === scope);
   seasonalLeaderboardBody.innerHTML = "";
 
@@ -689,9 +730,17 @@ function renderSeasonalLeaderboard(scope) {
   const isCurrent = seasonalCatalog?.currentScope === season.scope;
   seasonalSelectedSeason.textContent = `${season.name}${isCurrent ? " (Current)" : ""}`;
   const updatedLabel = season.updatedAt ? ` · Last changed ${season.updatedAt}` : "";
-  seasonalStatus.textContent = `${season.entries.length} observed entries${updatedLabel}`;
+  const supplementalEntries = seasonalSubmissions
+    .filter(entry => entry.scope === scope)
+    .map(entry => ({ ...entry, seasonName: season.name }));
+  const canonicalPlayers = new Set(season.entries.map(entry => resolvePlayerName(entry.player).toLowerCase()));
+  const combinedEntries = [
+    ...season.entries,
+    ...supplementalEntries.filter(entry => !canonicalPlayers.has(resolvePlayerName(entry.player).toLowerCase()))
+  ];
+  seasonalStatus.textContent = `${combinedEntries.length} observed entries${updatedLabel}`;
 
-  [...season.entries]
+  [...combinedEntries]
     .sort((a, b) => Number(a.rank) - Number(b.rank))
     .forEach(entry => {
       const displayName = normalizePlayerName(entry.player);
@@ -699,7 +748,7 @@ function renderSeasonalLeaderboard(scope) {
       row.innerHTML = `
         <td>${formatRank(entry.rank)}</td>
         <td class="player-name-cell" tabindex="0" role="button">${escapeHtml(displayName)}</td>
-        <td>${formatScore(entry.score)}</td>
+      <td>${formatScore(entry.score)}${entry.source === "submission" ? " · Submitted" : ""}</td>
       `;
 
       const nameCell = row.querySelector(".player-name-cell");
@@ -737,14 +786,18 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
     return;
   }
 
-  const allEntries = seasonalLeaderboards.flatMap((season, seasonIndex) =>
-    season.entries.map(entry => ({
+  const allEntries = seasonalLeaderboards.flatMap((season, seasonIndex) => {
+    const canonical = season.entries;
+    const canonicalPlayers = new Set(canonical.map(entry => resolvePlayerName(entry.player).toLowerCase()));
+    const supplemental = seasonalSubmissions
+      .filter(entry => entry.scope === season.scope && !canonicalPlayers.has(resolvePlayerName(entry.player).toLowerCase()));
+    return [...canonical, ...supplemental].map(entry => ({
       ...entry,
       scope: season.scope,
       seasonName: season.name,
       seasonIndex
-    }))
-  );
+    }));
+  });
   const matchingNames = [
     ...new Set(
       allEntries
@@ -899,6 +952,118 @@ function renderSeasonalRankChart(playerName, matches) {
   });
 
   seasonalRankChartContainer.classList.remove("hidden");
+}
+
+function setSeasonalSubmitStatus(message, className = "status") {
+  seasonalSubmitStatus.textContent = message;
+  seasonalSubmitStatus.className = className;
+}
+
+function renderSeasonalSubmitPreview(playerName, results) {
+  seasonalSubmitPlayer.textContent = `${playerName}'s seasonal results`;
+  seasonalSubmitResults.innerHTML = "";
+  const rankedResults = results.filter(result => result.rank !== null && result.rank !== undefined && Number.isFinite(Number(result.rank)));
+  const chartResults = results.filter(result => seasonalCatalog?.seasons.some(season => season.scope === result.scope));
+
+  chartResults.forEach(result => {
+    const row = document.createElement("div");
+    row.className = "seasonal-submit-result-row";
+    const seasonName = seasonalCatalog?.seasons.find(season => season.scope === result.scope)?.name || result.name;
+    row.innerHTML = `
+      <span>${escapeHtml(seasonName)}</span>
+      <span>${result.rank === null ? "Not ranked" : `Rank ${formatRank(result.rank)}`}</span>
+      <span>${result.score === null ? "—" : formatScore(result.score)}</span>
+    `;
+    seasonalSubmitResults.appendChild(row);
+  });
+
+  if (seasonalSubmitChart) {
+    seasonalSubmitChart.destroy();
+    seasonalSubmitChart = null;
+  }
+  if (rankedResults.length > 1 && seasonalSubmitChartCanvas) {
+    seasonalSubmitChart = new Chart(seasonalSubmitChartCanvas, {
+      type: "line",
+      data: {
+        labels: chartResults.map(result =>
+          seasonalCatalog?.seasons.find(season => season.scope === result.scope)?.name || result.name
+        ),
+        datasets: [{
+          label: "Seasonal rank",
+          data: chartResults.map(result => result.rank !== null && result.rank !== undefined && Number.isFinite(Number(result.rank)) ? Number(result.rank) : null),
+          borderColor: "#4d9cff",
+          backgroundColor: "rgba(77, 156, 255, 0.16)",
+          pointBackgroundColor: chartResults.map(result =>
+            result.rank !== null && result.rank !== undefined && Number.isFinite(Number(result.rank))
+              ? getRankColor(Number(result.rank))
+              : "transparent"
+          ),
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          borderWidth: 2,
+          tension: 0.25,
+          spanGaps: false,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: "#c1ccdb" } },
+          tooltip: {
+            callbacks: {
+              label: context => {
+                const result = chartResults[context.dataIndex];
+                return `Rank: ${formatRank(result.rank)} · Score: ${formatScore(result.score)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: "#8e9db2", maxRotation: 45, minRotation: 0 }, grid: { display: false } },
+          y: {
+            reverse: true,
+            beginAtZero: false,
+            ticks: { color: "#8e9db2", precision: 0 },
+            grid: { color: "rgba(142, 157, 178, 0.14)" }
+          }
+        }
+      }
+    });
+  }
+
+  seasonalSubmitLookupSection.classList.add("hidden");
+  seasonalSubmitPreview.classList.remove("hidden");
+}
+
+function resetSeasonalSubmitLookup() {
+  cachedSeasonalSubmitResults = null;
+  seasonalSubmitPreview.classList.add("hidden");
+  seasonalSubmitLookupSection.classList.remove("hidden");
+  seasonalSubmitEidInput.focus();
+  setSeasonalSubmitStatus("", "status");
+  seasonalSubmitLookupButton.disabled = false;
+  if (seasonalSubmitChart) {
+    seasonalSubmitChart.destroy();
+    seasonalSubmitChart = null;
+  }
+}
+
+function resetSeasonalSubmitModal() {
+  resetSeasonalSubmitLookup();
+  seasonalSubmitEidInput.value = "";
+  seasonalSaveEidCheckbox.checked = false;
+}
+
+function closeSeasonalSubmitModal() {
+  seasonalSubmitModal?.classList.add("hidden");
+  cachedSeasonalSubmitResults = null;
+}
+
+function seasonalSeasonSelectCurrentScope() {
+  return currentSeasonalScope || seasonalCatalog?.currentScope;
 }
 
 function hideSeasonalRankChart() {
@@ -1875,6 +2040,7 @@ seasonalClearSearchButton.addEventListener("click", () => {
 
 if (seasonalSubmitScoreButton) {
   seasonalSubmitScoreButton.addEventListener("click", () => {
+    resetSeasonalSubmitModal();
     seasonalSubmitModal?.classList.remove("hidden");
   });
 }
@@ -1888,9 +2054,110 @@ if (closeSeasonalSubmitModalButton) {
 if (seasonalSubmitModal) {
   seasonalSubmitModal.addEventListener("click", event => {
     if (event.target.classList.contains("modal-backdrop")) {
-      seasonalSubmitModal.classList.add("hidden");
+      closeSeasonalSubmitModal();
     }
   });
+}
+
+if (seasonalSubmitLookupForm) {
+  seasonalSubmitLookupForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const eid = seasonalSubmitEidInput.value.trim().toUpperCase();
+    seasonalSubmitEidInput.value = eid;
+    if (!/^EI\d{16,20}$/.test(eid)) {
+      setSeasonalSubmitStatus("Enter a valid EggInc ID (EI followed by 16–20 digits).", "error");
+      return;
+    }
+
+    seasonalSubmitLookupButton.disabled = true;
+    seasonalSubmitPreview.classList.add("hidden");
+    setSeasonalSubmitStatus("Looking up your seasonal results...", "status");
+    try {
+      const response = await fetch(SEASONAL_SUBMIT_WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eid, action: "preview" })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "Seasonal lookup failed. Please try again.");
+      }
+
+      cachedSeasonalSubmitResults = { eid, player: result.player, results: result.results };
+      renderSeasonalSubmitPreview(result.player, result.results);
+      if (seasonalSaveEidCheckbox.checked) {
+        addSavedEid(eid);
+        updateSavedEidUsername(eid, result.player);
+      }
+      setSeasonalSubmitStatus(
+        result.alreadySubmittedToday
+          ? "Preview ready. This ID has already submitted seasonal results today."
+          : "Preview only: nothing is published unless you confirm below.",
+        "status"
+      );
+    } catch (error) {
+      setSeasonalSubmitStatus(error.message, "error");
+    } finally {
+      seasonalSubmitLookupButton.disabled = false;
+    }
+  });
+}
+
+if (seasonalSubmitConfirmButton) {
+  seasonalSubmitConfirmButton.addEventListener("click", async () => {
+    if (!cachedSeasonalSubmitResults) return;
+    seasonalSubmitConfirmButton.disabled = true;
+    seasonalSubmitAgainButton.disabled = true;
+    seasonalSubmitCancelButton.disabled = true;
+    setSeasonalSubmitStatus("Rechecking and submitting your seasonal results...", "status");
+    try {
+      const response = await fetch(SEASONAL_SUBMIT_WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eid: cachedSeasonalSubmitResults.eid, action: "confirm" })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "Could not submit seasonal results.");
+      }
+      cachedSeasonalSubmitResults = null;
+      setSeasonalSubmitStatus(`Seasonal results for ${result.player} were submitted.`, "success");
+      seasonalSubmitPreview.classList.add("hidden");
+      result.results.filter(entry => entry.rank !== null).forEach(entry => {
+        const row = {
+          scope: entry.scope,
+          seasonName: entry.name,
+          rank: entry.rank,
+          player: result.player,
+          score: entry.score,
+          source: "submission"
+        };
+        const existingIndex = seasonalSubmissions.findIndex(item =>
+          item.scope === row.scope && resolvePlayerName(item.player).toLowerCase() === row.player.toLowerCase()
+        );
+        if (existingIndex >= 0) seasonalSubmissions[existingIndex] = row;
+        else seasonalSubmissions.push(row);
+      });
+      if (seasonalDataLoaded) {
+        renderSeasonalLeaderboard(currentSeasonalScope || seasonalCatalog?.currentScope);
+        if (seasonalPlayerSearch.value.trim()) searchSeasonalPlayer(seasonalPlayerSearch.value);
+      }
+    } catch (error) {
+      setSeasonalSubmitStatus(error.message, "error");
+    } finally {
+      seasonalSubmitConfirmButton.disabled = false;
+      seasonalSubmitAgainButton.disabled = false;
+      seasonalSubmitCancelButton.disabled = false;
+    }
+  });
+}
+
+if (seasonalSubmitAgainButton) {
+  seasonalSubmitAgainButton.addEventListener("click", resetSeasonalSubmitLookup);
+}
+
+if (seasonalSubmitCancelButton) {
+  seasonalSubmitCancelButton.addEventListener("click", closeSeasonalSubmitModal);
 }
 
 previousButton.addEventListener("click", () => {

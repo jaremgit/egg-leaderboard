@@ -169,6 +169,10 @@ All Time data, ongoing All Time and seasonal pulls, and player self-submissions:
    and rewrites a snapshot only when its entries change. Seasonal player
    summaries compare a player's recorded top-100 ranks across these snapshots;
    the archive does not retain weekly changes within a season.
+   Confirmed Seasonal EID submissions are stored separately in
+   `data/seasonal-submissions.json` so the weekly top-100 updater never
+   overwrites or mislabels them. The Seasonal table and player history merge
+   these public, opt-in results with the canonical snapshots.
 4. **Player self-submission** - a visitor can click **Submit Your Score**,
    enter their EggInc ID (EID), preview their own rank/score, and confirm
    publishing it. This is handled by the Cloudflare Worker in `worker/`,
@@ -205,6 +209,10 @@ Then open the printed local URL in a browser.
 The "Submit your score" feature requires deploying the Cloudflare Worker in
 `worker/` once. Full step-by-step instructions (Cloudflare login, KV
 namespace, GitHub token, secrets) are in [worker/README.md](worker/README.md).
+The Seasonal submission modal uses the same Worker at `/submit-seasonal` and
+stores confirmed public results in `data/seasonal-submissions.json`. Its
+`SEASONAL_GITHUB_BRANCH` variable currently targets `experimental`; deploy the
+Worker configuration/code before enabling seasonal submissions on a live site.
 
 ## Privacy note
 
