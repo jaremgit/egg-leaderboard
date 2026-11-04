@@ -1046,6 +1046,13 @@ td:last-child {
   text-align: right;
 }
 
+.seasonal-score-gap {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
 th:last-child {
   text-align: right;
 }

@@ -739,14 +739,7 @@ function renderSeasonalLeaderboard(scope) {
   const isCurrent = seasonalCatalog?.currentScope === season.scope;
   seasonalSelectedSeason.textContent = `${season.name}${isCurrent ? " (Current)" : ""}`;
   const updatedLabel = season.updatedAt ? ` · Last changed ${season.updatedAt}` : "";
-  const supplementalEntries = seasonalSubmissions
-    .filter(entry => entry.scope === scope)
-    .map(entry => ({ ...entry, seasonName: season.name }));
-  const canonicalPlayers = new Set(season.entries.map(entry => resolvePlayerName(entry.player).toLowerCase()));
-  const combinedEntries = [
-    ...season.entries,
-    ...supplementalEntries.filter(entry => !canonicalPlayers.has(resolvePlayerName(entry.player).toLowerCase()))
-  ];
+  const combinedEntries = getSeasonalEntries(season);
   seasonalStatus.textContent = `${combinedEntries.length} observed entries${updatedLabel}`;
 
   [...combinedEntries]
@@ -757,7 +750,7 @@ function renderSeasonalLeaderboard(scope) {
       row.innerHTML = `
         <td>${formatRank(entry.rank)}</td>
         <td class="player-name-cell" tabindex="0" role="button">${escapeHtml(displayName)}</td>
-        <td>${formatScore(entry.score)}</td>
+        <td>${formatSeasonalScore(entry.score, season)}</td>
       `;
 
       const nameCell = row.querySelector(".player-name-cell");
@@ -770,6 +763,28 @@ function renderSeasonalLeaderboard(scope) {
       });
       seasonalLeaderboardBody.appendChild(row);
     });
+}
+
+function getSeasonalEntries(season) {
+  const canonicalPlayers = new Set(
+    season.entries.map(entry => resolvePlayerName(entry.player).toLowerCase())
+  );
+  const supplementalEntries = seasonalSubmissions
+    .filter(entry => entry.scope === season.scope)
+    .filter(entry => !canonicalPlayers.has(resolvePlayerName(entry.player).toLowerCase()))
+    .map(entry => ({ ...entry, seasonName: season.name }));
+  return [...season.entries, ...supplementalEntries];
+}
+
+function formatSeasonalScore(score, season) {
+  const firstPlace = getSeasonalEntries(season).find(entry => Number(entry.rank) === 1);
+  const playerScore = Number(String(score).replaceAll(",", "").trim());
+  const firstPlaceScore = Number(String(firstPlace?.score ?? "").replaceAll(",", "").trim());
+  const gap = Number.isFinite(playerScore) && Number.isFinite(firstPlaceScore)
+    ? Math.max(0, firstPlaceScore - playerScore)
+    : null;
+
+  return `${formatScore(score)}<div class="seasonal-score-gap">Gap to 1st: ${gap === null ? "—" : formatScore(gap)}</div>`;
 }
 
 function selectSeasonalPlayer(playerName) {
@@ -798,11 +813,7 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
   }
 
   const allEntries = seasonalLeaderboards.flatMap((season, seasonIndex) => {
-    const canonical = season.entries;
-    const canonicalPlayers = new Set(canonical.map(entry => resolvePlayerName(entry.player).toLowerCase()));
-    const supplemental = seasonalSubmissions
-      .filter(entry => entry.scope === season.scope && !canonicalPlayers.has(resolvePlayerName(entry.player).toLowerCase()));
-    return [...canonical, ...supplemental].map(entry => ({
+    return getSeasonalEntries(season).map(entry => ({
       ...entry,
       scope: season.scope,
       seasonName: season.name,
@@ -873,7 +884,7 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
       <td>${escapeHtml(match.seasonName)}</td>
       <td>${formatRank(match.rank)}</td>
       <td>${escapeHtml(match.player)}</td>
-      <td>${formatScore(match.score)}</td>
+      <td>${formatSeasonalScore(match.score, seasonalLeaderboards.find(season => season.scope === match.scope))}</td>
     `;
     seasonalPlayerHistoryBody.appendChild(row);
   });
