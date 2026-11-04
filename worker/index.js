@@ -24,12 +24,10 @@
    frontend can merge them into the table live. This is public/read-only
    data (the same name/rank/score already visible in-game and on the site).
 
-   PRIVACY NOTE: The EID a visitor submits is only ever held in memory for
-   the duration of a single request. It is never logged (no console.log of
-   the eid), never stored in KV or in git, and is discarded as soon as the
-   ei_worker lookup completes. Only the resulting public leaderboard fields
-   (name, score, rank) - the same information already visible in-game and on
-   this site - are persisted, and only for "confirm" requests.
+   PRIVACY NOTE: The EID is used only in-memory to make the requested API
+   calls. It is never logged, stored in KV, or written to git. Only the
+   resulting public leaderboard fields (name, score, rank, season) are
+   persisted, and only for confirmed submissions.
    ========================================================================= */
 
 const EID_PATTERN = /^EI\d{16,20}$/;
@@ -309,10 +307,12 @@ async function lookupSeasonalResults(eid, env, player) {
           throw new Error(`Seasonal lookup failed for ${season.name} (HTTP ${response.status}).`);
         }
         const data = await response.json();
-        const rank = Number(data?.rank);
-        const score = Number(data?.score);
+      const rankValue = data?.rank;
+      const scoreValue = data?.score;
+      const rank = rankValue === null || rankValue === undefined || rankValue === "" ? NaN : Number(rankValue);
+      const score = scoreValue === null || scoreValue === undefined || scoreValue === "" ? NaN : Number(scoreValue);
         results[index] = Number.isSafeInteger(rank) && rank >= 1 && Number.isFinite(score) && score >= 0
-          ? { scope: season.scope, name: season.name, rank: String(rank), score: String(score), player }
+          ? { scope: season.scope, name: season.name, rank: String(rank), score: String(scoreValue), player }
           : { scope: season.scope, name: season.name, rank: null, score: null, player };
       } catch (error) {
         failure = error;

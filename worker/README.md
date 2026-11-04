@@ -9,6 +9,7 @@ The Cloudflare Worker provides separate All Time and Seasonal submission routes.
 - Confirm (`action: "confirm"`) repeats the lookups, writes only results with a valid rank/score to `data/seasonal-submissions.json`, and rate-limits the EID separately from All Time submissions.
 - The seasonal supplemental archive is separate from `data/seasonal/<scope>.json`; weekly top-100 refreshes do not overwrite or mix supplemental entries into the canonical top-100 snapshots.
 - The static frontend merges supplemental entries into the seasonal leaderboard and player history, deduplicating players already in the canonical top 100.
+- The EID's salted hash is used for an independent once-per-day Seasonal rate limit; the EID itself is not used as the KV key.
 
 ## Configuration and deployment
 

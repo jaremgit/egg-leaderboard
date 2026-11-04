@@ -118,6 +118,37 @@ test("seasonal confirm writes public entries only to the experimental supplement
   assert.ok(archive.entries.every(entry => !JSON.stringify(entry).includes("EI1234567890123456")));
 });
 
+test("seasonal confirm updates an existing player/scope row without duplicating it", async () => {
+  const worker = (await loadWorker()).default;
+  const env = createEnv();
+  const writes = [];
+  const fetchApi = apiFetch({ writes });
+  globalThis.fetch = async (input, init = {}) => {
+    const url = new URL(input);
+    if (url.hostname === "api.github.com" && init.method !== "PUT") {
+      const content = Buffer.from(JSON.stringify({
+        updatedAt: "2025-01-01",
+        entries: [{
+          scope: "spring_2025",
+          seasonName: "Spring 2025",
+          rank: "150",
+          player: "seasontester",
+          score: "750000",
+          source: "submission"
+        }]
+      })).toString("base64");
+      return Response.json({ sha: "existing-sha", content });
+    }
+    return fetchApi(input, init);
+  };
+
+  const response = await callSeasonal(worker, env, { eid: "EI1234567890123456", action: "confirm" });
+  const archive = JSON.parse(Buffer.from(writes[0].body.content, "base64").toString("utf8"));
+  assert.equal(response.status, 200);
+  assert.equal(archive.entries.filter(entry => entry.scope === "spring_2025" && entry.player.toLowerCase() === "seasontester").length, 1);
+  assert.equal(archive.entries.find(entry => entry.scope === "spring_2025").rank, "134");
+});
+
 test("failed seasonal lookup returns an error and does not partially publish", async () => {
   const worker = (await loadWorker()).default;
   const env = createEnv();

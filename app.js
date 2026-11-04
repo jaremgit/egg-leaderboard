@@ -630,27 +630,6 @@ async function loadSeasonalLeaderboards() {
     if (seasonalPlayerSearch.value.trim()) {
       searchSeasonalPlayer(seasonalPlayerSearch.value);
     }
-
-async function loadSeasonalSubmissions(forceRefresh = false) {
-  try {
-    const url = forceRefresh
-      ? `data/seasonal-submissions.json?refresh=${Date.now()}`
-      : "data/seasonal-submissions.json";
-    const response = await fetch(url, { cache: forceRefresh ? "no-store" : "default" });
-    if (response.status === 404) {
-      seasonalSubmissions = [];
-      return;
-    }
-    if (!response.ok) {
-      throw new Error("Could not load seasonal submissions.");
-    }
-    const archive = await response.json();
-    seasonalSubmissions = Array.isArray(archive.entries) ? archive.entries : [];
-  } catch (error) {
-    console.error("Failed to load seasonal submissions:", error);
-    seasonalSubmissions = [];
-  }
-}
   })();
 
   try {
@@ -663,6 +642,24 @@ async function loadSeasonalSubmissions(forceRefresh = false) {
     seasonalDataLoaded = false;
   } finally {
     seasonalDataLoading = null;
+  }
+}
+
+async function loadSeasonalSubmissions() {
+  try {
+    const response = await fetch("data/seasonal-submissions.json");
+    if (response.status === 404) {
+      seasonalSubmissions = [];
+      return;
+    }
+    if (!response.ok) {
+      throw new Error("Could not load seasonal submissions.");
+    }
+    const archive = await response.json();
+    seasonalSubmissions = Array.isArray(archive.entries) ? archive.entries : [];
+  } catch (error) {
+    console.error("Failed to load seasonal submissions:", error);
+    seasonalSubmissions = [];
   }
 }
 
@@ -1042,7 +1039,7 @@ function resetSeasonalSubmitLookup() {
   cachedSeasonalSubmitResults = null;
   seasonalSubmitPreview.classList.add("hidden");
   seasonalSubmitLookupSection.classList.remove("hidden");
-  seasonalSubmitEidInput.focus();
+  seasonalSubmitConfirmButton.disabled = false;
   setSeasonalSubmitStatus("", "status");
   seasonalSubmitLookupButton.disabled = false;
   if (seasonalSubmitChart) {
@@ -1054,16 +1051,17 @@ function resetSeasonalSubmitLookup() {
 function resetSeasonalSubmitModal() {
   resetSeasonalSubmitLookup();
   seasonalSubmitEidInput.value = "";
-  seasonalSaveEidCheckbox.checked = false;
+  seasonalSaveEidCheckbox.checked = true;
 }
 
 function closeSeasonalSubmitModal() {
   seasonalSubmitModal?.classList.add("hidden");
   cachedSeasonalSubmitResults = null;
-}
-
-function seasonalSeasonSelectCurrentScope() {
-  return currentSeasonalScope || seasonalCatalog?.currentScope;
+  seasonalSubmitEidInput.value = "";
+  if (seasonalSubmitChart) {
+    seasonalSubmitChart.destroy();
+    seasonalSubmitChart = null;
+  }
 }
 
 function hideSeasonalRankChart() {
@@ -2047,7 +2045,7 @@ if (seasonalSubmitScoreButton) {
 
 if (closeSeasonalSubmitModalButton) {
   closeSeasonalSubmitModalButton.addEventListener("click", () => {
-    seasonalSubmitModal?.classList.add("hidden");
+    closeSeasonalSubmitModal();
   });
 }
 
@@ -2095,8 +2093,9 @@ if (seasonalSubmitLookupForm) {
           : "Preview only: nothing is published unless you confirm below.",
         "status"
       );
+      seasonalSubmitConfirmButton.disabled = Boolean(result.alreadySubmittedToday);
     } catch (error) {
-      setSeasonalSubmitStatus(error.message, "error");
+      setSeasonalSubmitStatus(error.message, "status error");
     } finally {
       seasonalSubmitLookupButton.disabled = false;
     }
@@ -2121,7 +2120,7 @@ if (seasonalSubmitConfirmButton) {
         throw new Error(result.error || "Could not submit seasonal results.");
       }
       cachedSeasonalSubmitResults = null;
-      setSeasonalSubmitStatus(`Seasonal results for ${result.player} were submitted.`, "success");
+      setSeasonalSubmitStatus(`Seasonal results for ${result.player} were submitted.`, "status success");
       seasonalSubmitPreview.classList.add("hidden");
       result.results.filter(entry => entry.rank !== null).forEach(entry => {
         const row = {
@@ -2143,7 +2142,7 @@ if (seasonalSubmitConfirmButton) {
         if (seasonalPlayerSearch.value.trim()) searchSeasonalPlayer(seasonalPlayerSearch.value);
       }
     } catch (error) {
-      setSeasonalSubmitStatus(error.message, "error");
+      setSeasonalSubmitStatus(error.message, "status error");
     } finally {
       seasonalSubmitConfirmButton.disabled = false;
       seasonalSubmitAgainButton.disabled = false;

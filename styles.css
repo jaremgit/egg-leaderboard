@@ -917,6 +917,14 @@ button.secondary:hover:not(:disabled) {
   color: #8fd19e;
 }
 
+#seasonal-submit-status.error {
+  color: #f28b82;
+}
+
+#seasonal-submit-status.success {
+  color: #8fd19e;
+}
+
 #history-table-wrapper {
   padding: 0 20px 20px;
   border: 1px solid var(--border);

@@ -216,12 +216,13 @@ Worker configuration/code before enabling seasonal submissions on a live site.
 
 ## Privacy note
 
-EggInc IDs submitted through the site are **only ever seen by your own browser and the third-party ei_worker API** — they never reach this project's servers. Here's how:
-
-1. When you click "Look up", your **browser directly calls** `ei_worker.tylertms.workers.dev` to fetch your public leaderboard rank/score/name (same as the weekly archive pull).
-2. Only the **results** (name/score/rank) are then sent to this project's Cloudflare Worker for publishing.
-3. When you click "Confirm & Submit", the Worker publishes **only** the public leaderboard fields (name, score, rank, which are already visible in-game) to `data/*.json`. The raw EID is never stored, logged, or committed.
-4. Any EID saved for auto-fill convenience (the "saved IDs" feature) is stored **only in your own browser's local storage** — it is never sent anywhere except to ei_worker or this project's Worker as part of your active submission.
+When a visitor clicks "Look up" or confirms a submission, the EID is sent to
+this project's Cloudflare Worker, which uses it in memory to call the public
+`ei_worker` API. The EID is not logged, stored in KV, or committed to GitHub;
+the rate-limit key is a salted hash. Only public player names, ranks, scores,
+and seasonal scopes are written after explicit confirmation. The optional
+"Remember this ID" checkbox stores the EID in that visitor's browser local
+storage; it is sent to the Worker only during an active lookup or submission.
 
 ## Contributing / feedback
 
