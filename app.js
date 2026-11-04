@@ -741,6 +741,7 @@ function renderSeasonalLeaderboard(scope) {
   const updatedLabel = season.updatedAt ? ` · Last changed ${season.updatedAt}` : "";
   const combinedEntries = getSeasonalEntries(season);
   seasonalStatus.textContent = `${combinedEntries.length} observed entries${updatedLabel}`;
+  const firstPlaceScore = getSeasonalEntries(season).find(entry => Number(entry.rank) === 1)?.score;
 
   [...combinedEntries]
     .sort((a, b) => Number(a.rank) - Number(b.rank))
@@ -750,7 +751,8 @@ function renderSeasonalLeaderboard(scope) {
       row.innerHTML = `
         <td>${formatRank(entry.rank)}</td>
         <td class="player-name-cell" tabindex="0" role="button">${escapeHtml(displayName)}</td>
-        <td>${formatSeasonalScore(entry.score, season)}</td>
+        <td>${formatScore(entry.score)}</td>
+        <td>${formatSeasonalScoreGap(entry.score, firstPlaceScore)}</td>
       `;
 
       const nameCell = row.querySelector(".player-name-cell");
@@ -776,15 +778,14 @@ function getSeasonalEntries(season) {
   return [...season.entries, ...supplementalEntries];
 }
 
-function formatSeasonalScore(score, season) {
-  const firstPlace = getSeasonalEntries(season).find(entry => Number(entry.rank) === 1);
+function formatSeasonalScoreGap(score, firstPlaceScore) {
   const playerScore = Number(String(score).replaceAll(",", "").trim());
-  const firstPlaceScore = Number(String(firstPlace?.score ?? "").replaceAll(",", "").trim());
-  const gap = Number.isFinite(playerScore) && Number.isFinite(firstPlaceScore)
-    ? Math.max(0, firstPlaceScore - playerScore)
+  const numericFirstPlaceScore = Number(String(firstPlaceScore ?? "").replaceAll(",", "").trim());
+  const gap = Number.isFinite(playerScore) && Number.isFinite(numericFirstPlaceScore)
+    ? Math.max(0, numericFirstPlaceScore - playerScore)
     : null;
 
-  return `${formatScore(score)}<div class="seasonal-score-gap">Gap to 1st: ${gap === null ? "—" : formatScore(gap)}</div>`;
+  return gap === null ? "—" : formatScore(gap);
 }
 
 function selectSeasonalPlayer(playerName) {
@@ -878,13 +879,18 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
   `;
   seasonalPlayerSummary.classList.remove("hidden");
 
+  const firstPlaceScores = new Map(seasonalLeaderboards.map(season => [
+    season.scope,
+    getSeasonalEntries(season).find(entry => Number(entry.rank) === 1)?.score
+  ]));
   matches.forEach(match => {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${escapeHtml(match.seasonName)}</td>
       <td>${formatRank(match.rank)}</td>
       <td>${escapeHtml(match.player)}</td>
-      <td>${formatSeasonalScore(match.score, seasonalLeaderboards.find(season => season.scope === match.scope))}</td>
+      <td>${formatScore(match.score)}</td>
+      <td>${formatSeasonalScoreGap(match.score, firstPlaceScores.get(match.scope))}</td>
     `;
     seasonalPlayerHistoryBody.appendChild(row);
   });
