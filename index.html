@@ -23,7 +23,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EI ATL Archive </title>
+  <title>Egg Inc Leaderboards</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥇</text></svg>">
   <link rel="stylesheet" href="styles.css">
   <script>
@@ -63,41 +63,28 @@
        scrolling; CSS (.date-format-floater) handles auto-adjusting its
        size/position for smaller screens. -->
   <div id="date-format-floater" class="date-format-floater">
-    <div class="jump-buttons">
-      <button id="jump-top-button" type="button" class="jump-button-top" title="Jump to top">⬆ Top</button>
-      <div class="jump-buttons-row">
-        <button id="jump-search-button" type="button" title="Jump to player search">🔍 Search</button>
-        <button id="jump-controls-button" type="button" title="Jump to snapshot date selection">📅 Date</button>
+    <button id="floating-tools-toggle" class="floating-tools-toggle" type="button" aria-expanded="true" aria-controls="floating-tools-content">
+      <span>☰ Navigation</span>
+      <span class="floating-tools-toggle-icon" aria-hidden="true">⌃</span>
+    </button>
+    <div id="floating-tools-content" class="floating-tools-content">
+      <div class="jump-buttons">
+        <button id="jump-top-button" type="button" class="jump-button-top" title="Jump to top">⬆ Top</button>
+        <div class="jump-buttons-row">
+          <button id="jump-search-button" type="button" title="Jump to player search">🔍 Search</button>
+          <button id="jump-controls-button" type="button" title="Jump to snapshot date selection">📅 Date</button>
+        </div>
+        <button id="jump-leaderboard-button" type="button" class="jump-button-wide" title="Jump to snapshot leaderboard">🏆 Snapshot</button>
       </div>
-      <button id="jump-leaderboard-button" type="button" class="jump-button-wide" title="Jump to snapshot leaderboard">🏆 Snapshot</button>
-    </div>
-    <div id="date-format-row" class="date-format-row">
-      <label for="date-format-select">📆 Format</label>
-      <select id="date-format-select">
-        <option value="dmy">DD/MM/YYYY</option>
-        <option value="mdy">MM/DD/YYYY</option>
-        <option value="iso">YYYY-MM-DD</option>
-        <option value="long">Jan 01 2000</option>
-      </select>
-    </div>
-  </div>
-
-  <header class="site-header">
-    <div class="container">
-      <p class="eyebrow">Historical archive</p>
-      <h1 id="site-title">Egg Inc All Time Leaderboard</h1>
-      <p id="site-subtitle" class="subtitle">
-        Explore archived All Time leaderboard scores and rankings!
-      </p>
-    </div>
-  </header>
-
-  <div class="submission-notice">
-    <div class="container">
-      <p>
-        Have leaderboard data to submit? Please ping <strong>@jarem</strong> in the 
-        <a href="https://discord.gg/egginc" target="_blank" rel="noopener noreferrer">Egg Inc Discord</a>!
-      </p>
+      <div id="date-format-row" class="date-format-row">
+        <label for="date-format-select">📆 Format</label>
+        <select id="date-format-select">
+          <option value="dmy">DD/MM/YYYY</option>
+          <option value="mdy">MM/DD/YYYY</option>
+          <option value="iso">YYYY-MM-DD</option>
+          <option value="long">Jan 01 2000</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -283,7 +270,7 @@
           <div class="lookup-column search-column">
             <p class="eyebrow">Player lookup</p>
             <h2>Search seasonal history</h2>
-            <p class="search-help">Search players recorded in the seasonal top-100 snapshots.</p>
+            <p class="search-help">Search players recorded in seasonal leaderboards.</p>
 
             <div class="search-controls">
               <label for="seasonal-player-search">Player name</label>
@@ -304,7 +291,7 @@
             <p class="eyebrow">EID Search &amp; Submission</p>
             <h2>Submit your seasonal score</h2>
             <p class="search-help">
-              Look up your current seasonal details and optionally add your ranking to this archive!
+              Look up your current seasonal details and optionally add your ranking to this site!
             </p>
 
             <div class="submit-score-row">
@@ -365,14 +352,14 @@
       <section id="seasonal-leaderboard-card" class="leaderboard-card">
         <div class="leaderboard-heading">
           <div>
-            <p class="eyebrow">Seasonal snapshot</p>
+            <p class="eyebrow">Seasonal leaderboard</p>
             <h2 id="seasonal-selected-season">Loading...</h2>
           </div>
           <p id="seasonal-status" class="status">Loading...</p>
         </div>
 
         <div class="notice">
-          Seasonal snapshots show the top 100 recorded players for each season. One latest snapshot is kept per season.
+          Each seasonal leaderboard shows the top 100 recorded players for that season. The latest results are kept on this site.
         </div>
 
         <div class="table-wrapper">

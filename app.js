@@ -82,8 +82,6 @@ const allTimeViewButton = document.getElementById("all-time-view-button");
 const seasonalViewButton = document.getElementById("seasonal-view-button");
 const allTimeView = document.getElementById("all-time-view");
 const seasonalView = document.getElementById("seasonal-view");
-const siteTitle = document.getElementById("site-title");
-const siteSubtitle = document.getElementById("site-subtitle");
 const dateFormatFloater = document.getElementById("date-format-floater");
 const dateFormatRow = document.getElementById("date-format-row");
 const seasonalSeasonButtons = document.getElementById("seasonal-season-buttons");
@@ -140,6 +138,7 @@ const jumpTopButton = document.getElementById("jump-top-button");
 const jumpSearchButton = document.getElementById("jump-search-button");
 const jumpControlsButton = document.getElementById("jump-controls-button");
 const jumpLeaderboardButton = document.getElementById("jump-leaderboard-button");
+const floatingToolsToggle = document.getElementById("floating-tools-toggle");
 const submitConfirmButton = document.getElementById("submit-confirm-button");
 const submitCancelButton = document.getElementById("submit-cancel-button");
 const submitSearchAgainButton = document.getElementById("submit-search-again-button");
@@ -495,7 +494,7 @@ async function loadLeaderboard(date) {
       const displayName = normalizePlayerName(entry.player);
 
       row.innerHTML = `
-        <td>${formatRank(entry.rank)}</td>
+        <td>${formatRank(entry.rank)}${getRankMedal(Number(entry.rank)) ? ` ${getRankMedal(Number(entry.rank))}` : ""}</td>
         <td class="player-name-cell" tabindex="0" role="button">${escapeHtml(displayName)}</td>
         <td>${formatScore(entry.score)}</td>
       `;
@@ -580,16 +579,16 @@ async function loadSeasonalLeaderboards() {
     return seasonalDataLoading;
   }
 
-  seasonalStatus.textContent = "Loading seasonal archive...";
+  seasonalStatus.textContent = "Loading seasonal leaderboard data...";
   seasonalDataLoading = (async () => {
     const response = await fetch("data/seasonal/index.json");
     if (!response.ok) {
-      throw new Error("Could not load the seasonal archive index.");
+      throw new Error("Could not load the seasonal leaderboard list.");
     }
 
     const catalog = await response.json();
     if (!catalog || !Array.isArray(catalog.seasons)) {
-      throw new Error("The seasonal archive index is invalid.");
+      throw new Error("The seasonal leaderboard list is invalid.");
     }
 
     const seasons = catalog.seasons.filter(season =>
@@ -603,26 +602,26 @@ async function loadSeasonalLeaderboards() {
       seasonalSeasonButtons.innerHTML = "<p class=\"status\">No seasons available</p>";
       seasonalSelectedSeason.textContent = "No seasons available";
       seasonalLeaderboardBody.innerHTML = "";
-      seasonalStatus.textContent = "Seasonal data will appear after the archive's first successful update.";
-      seasonalPlayerStatus.textContent = "No seasonal snapshots are available yet.";
+      seasonalStatus.textContent = "Seasonal data will appear after this site receives its first successful update.";
+      seasonalPlayerStatus.textContent = "No seasonal leaderboard results are available yet.";
       return;
     }
 
     const loadedSeasons = await Promise.all(seasons.map(async season => {
-      const snapshotResponse = await fetch(`data/seasonal/${encodeURIComponent(season.scope)}.json`);
-      if (!snapshotResponse.ok) {
-        throw new Error(`Could not load the ${season.name} snapshot.`);
+      const resultsResponse = await fetch(`data/seasonal/${encodeURIComponent(season.scope)}.json`);
+      if (!resultsResponse.ok) {
+        throw new Error(`Could not load the ${season.name} leaderboard results.`);
       }
 
-      const snapshot = await snapshotResponse.json();
-      if (snapshot.scope !== season.scope || !Array.isArray(snapshot.entries)) {
-        throw new Error(`The ${season.name} snapshot is invalid.`);
+      const results = await resultsResponse.json();
+      if (results.scope !== season.scope || !Array.isArray(results.entries)) {
+        throw new Error(`The ${season.name} results are invalid.`);
       }
 
       return {
         ...season,
-        updatedAt: snapshot.updatedAt,
-        entries: snapshot.entries
+        updatedAt: results.updatedAt,
+        entries: results.entries
       };
     }));
 
@@ -643,8 +642,8 @@ async function loadSeasonalLeaderboards() {
     seasonalDataLoaded = true;
   } catch (error) {
     seasonalStatus.textContent = `Could not load seasonal data: ${error.message}`;
-    seasonalSelectedSeason.textContent = "Seasonal archive unavailable";
-    seasonalSeasonButtons.innerHTML = "<p class=\"status\">Seasonal archive unavailable</p>";
+    seasonalSelectedSeason.textContent = "Seasonal data unavailable";
+    seasonalSeasonButtons.innerHTML = "<p class=\"status\">Seasonal data unavailable</p>";
     seasonalDataLoaded = false;
   } finally {
     seasonalDataLoading = null;
@@ -749,7 +748,7 @@ function renderSeasonalLeaderboard(scope) {
       const displayName = normalizePlayerName(entry.player);
       const row = document.createElement("tr");
       row.innerHTML = `
-        <td>${formatRank(entry.rank)}</td>
+        <td>${formatRank(entry.rank)}${getRankMedal(Number(entry.rank)) ? ` ${getRankMedal(Number(entry.rank))}` : ""}</td>
         <td class="player-name-cell" tabindex="0" role="button">${escapeHtml(displayName)}</td>
         <td>${formatScore(entry.score)}</td>
         <td>${formatSeasonalScoreGap(entry.score, firstPlaceScore)}</td>
@@ -833,7 +832,7 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
   ];
 
   if (matchingNames.length === 0) {
-    seasonalPlayerStatus.textContent = "No matching players found in the seasonal top-100 snapshots.";
+    seasonalPlayerStatus.textContent = "No matching players found in the seasonal leaderboards.";
     return;
   }
 
@@ -866,7 +865,7 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
     </div>
     <div class="summary-item">
       <div class="summary-label">Best seasonal rank</div>
-      <div class="summary-value">${bestRank === null ? "Unknown" : formatRank(bestRank)}</div>
+      <div class="summary-value">${bestRank === null ? "Unknown" : `${formatRank(bestRank)} ${getRankMedal(bestRank)}`}</div>
     </div>
     <div class="summary-item">
       <div class="summary-label">Average recorded rank</div>
@@ -874,7 +873,7 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
     </div>
     <div class="summary-item">
       <div class="summary-label">Current season rank${currentSeason ? ` (${escapeHtml(currentSeason.name)})` : ""}</div>
-      <div class="summary-value">${currentEntry ? formatRank(currentEntry.rank) : "Not in recorded top 100"}</div>
+      <div class="summary-value">${currentEntry ? `${formatRank(currentEntry.rank)} ${getRankMedal(Number(currentEntry.rank))}` : "Not in recorded top 100"}</div>
     </div>
   `;
   seasonalPlayerSummary.classList.remove("hidden");
@@ -887,7 +886,7 @@ function searchSeasonalPlayer(searchValue = seasonalPlayerSearch.value) {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${escapeHtml(match.seasonName)}</td>
-      <td>${formatRank(match.rank)}</td>
+      <td>${formatRank(match.rank)}${getRankMedal(Number(match.rank)) ? ` ${getRankMedal(Number(match.rank))}` : ""}</td>
       <td>${escapeHtml(match.player)}</td>
       <td>${formatScore(match.score)}</td>
       <td>${formatSeasonalScoreGap(match.score, firstPlaceScores.get(match.scope))}</td>
@@ -1102,7 +1101,7 @@ function renderSeasonalSubmitPreview(playerName, results) {
     row.className = "seasonal-submit-result-row";
     const seasonName = seasonalCatalog?.seasons.find(season => season.scope === result.scope)?.name || result.name;
     row.innerHTML = `
-      <span>${escapeHtml(seasonName)}</span>
+      <span title="${escapeHtml(seasonName)}">${escapeHtml(seasonName)}</span>
       <span>${result.rank === null ? "Not ranked" : `Rank ${formatRank(result.rank)}`}</span>
       <span>${result.score === null ? "—" : formatScore(result.score)}</span>
     `;
@@ -1219,13 +1218,6 @@ function setLeaderboardView(showSeasonal) {
   seasonalViewButton.classList.toggle("active", showSeasonal);
   allTimeViewButton.setAttribute("aria-pressed", String(!showSeasonal));
   seasonalViewButton.setAttribute("aria-pressed", String(showSeasonal));
-  siteTitle.textContent = showSeasonal
-    ? "Egg Inc Seasonal Leaderboards - Experimental"
-    : "Egg Inc All Time Leaderboard";
-  siteSubtitle.textContent = showSeasonal
-    ? "Explore recorded seasonal leaderboard rankings and player history!"
-    : "Explore archived All Time leaderboard scores and rankings!";
-
   if (showSeasonal) {
     loadSeasonalLeaderboards();
   }
@@ -2131,6 +2123,14 @@ function scrollToElementById(elementId) {
   if (element) {
     element.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+}
+
+if (floatingToolsToggle) {
+  floatingToolsToggle.addEventListener("click", () => {
+    const isExpanded = floatingToolsToggle.getAttribute("aria-expanded") === "true";
+    floatingToolsToggle.setAttribute("aria-expanded", String(!isExpanded));
+    dateFormatFloater.classList.toggle("collapsed", isExpanded);
+  });
 }
 
 if (jumpTopButton) {
