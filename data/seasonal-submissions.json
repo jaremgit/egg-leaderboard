@@ -1,6 +1,14 @@
 {
-  "updatedAt": "2026-11-04",
+  "updatedAt": "2026-11-06",
   "entries": [
+    {
+      "scope": "fall_2023",
+      "seasonName": "Fall 2023",
+      "rank": "19",
+      "player": "SmylieKylie86",
+      "score": "906201",
+      "source": "submission"
+    },
     {
       "scope": "fall_2023",
       "seasonName": "Fall 2023",
@@ -23,6 +31,14 @@
       "rank": "22",
       "player": "jarem.",
       "score": "928706",
+      "source": "submission"
+    },
+    {
+      "scope": "fall_2024",
+      "seasonName": "Fall 2024",
+      "rank": "55",
+      "player": "SmylieKylie86",
+      "score": "908901",
       "source": "submission"
     },
     {
@@ -60,6 +76,14 @@
     {
       "scope": "fall_2025",
       "seasonName": "Fall 2025",
+      "rank": "91",
+      "player": "SmylieKylie86",
+      "score": "935820",
+      "source": "submission"
+    },
+    {
+      "scope": "fall_2025",
+      "seasonName": "Fall 2025",
       "rank": "2890",
       "player": "j3arem",
       "score": "727831",
@@ -71,6 +95,14 @@
       "rank": "9998",
       "player": "j4arem",
       "score": "507842",
+      "source": "submission"
+    },
+    {
+      "scope": "fall_2026",
+      "seasonName": "Fall 2026",
+      "rank": "122",
+      "player": "SmylieKylie86",
+      "score": "503678",
       "source": "submission"
     },
     {
@@ -108,6 +140,14 @@
     {
       "scope": "spring_2023",
       "seasonName": "Spring 2023",
+      "rank": "479",
+      "player": "SmylieKylie86",
+      "score": "303855",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2023",
+      "seasonName": "Spring 2023",
       "rank": "958",
       "player": "jarem.",
       "score": "249670",
@@ -135,6 +175,14 @@
       "rank": "9715",
       "player": "j4arem",
       "score": "114514",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2024",
+      "seasonName": "Spring 2024",
+      "rank": "23",
+      "player": "SmylieKylie86",
+      "score": "856709",
       "source": "submission"
     },
     {
@@ -172,6 +220,14 @@
     {
       "scope": "spring_2025",
       "seasonName": "Spring 2025",
+      "rank": "65",
+      "player": "SmylieKylie86",
+      "score": "969551",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2025",
+      "seasonName": "Spring 2025",
       "rank": "241",
       "player": "j2arem",
       "score": "913226",
@@ -196,6 +252,14 @@
     {
       "scope": "spring_2026",
       "seasonName": "Spring 2026",
+      "rank": "91",
+      "player": "SmylieKylie86",
+      "score": "965918",
+      "source": "submission"
+    },
+    {
+      "scope": "spring_2026",
+      "seasonName": "Spring 2026",
       "rank": "144",
       "player": "j2arem",
       "score": "957095",
@@ -215,6 +279,14 @@
       "rank": "401",
       "player": "j4arem",
       "score": "916691",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2023",
+      "seasonName": "Summer 2023",
+      "rank": "225",
+      "player": "SmylieKylie86",
+      "score": "817637",
       "source": "submission"
     },
     {
@@ -260,6 +332,14 @@
     {
       "scope": "summer_2024",
       "seasonName": "Summer 2024",
+      "rank": "28",
+      "player": "SmylieKylie86",
+      "score": "939228",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2024",
+      "seasonName": "Summer 2024",
       "rank": "110",
       "player": "j2arem",
       "score": "881321",
@@ -279,6 +359,14 @@
       "rank": "42",
       "player": "jarem.",
       "score": "1012414",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2025",
+      "seasonName": "Summer 2025",
+      "rank": "52",
+      "player": "SmylieKylie86",
+      "score": "1003576",
       "source": "submission"
     },
     {
@@ -324,6 +412,14 @@
     {
       "scope": "summer_2026",
       "seasonName": "Summer 2026",
+      "rank": "119",
+      "player": "SmylieKylie86",
+      "score": "1029072",
+      "source": "submission"
+    },
+    {
+      "scope": "summer_2026",
+      "seasonName": "Summer 2026",
       "rank": "298",
       "player": "j3arem",
       "score": "1002079",
@@ -335,6 +431,14 @@
       "rank": "342",
       "player": "j4arem",
       "score": "995527",
+      "source": "submission"
+    },
+    {
+      "scope": "winter_2024",
+      "seasonName": "Winter 2024",
+      "rank": "17",
+      "player": "SmylieKylie86",
+      "score": "969502",
       "source": "submission"
     },
     {
@@ -364,6 +468,14 @@
     {
       "scope": "winter_2025",
       "seasonName": "Winter 2025",
+      "rank": "68",
+      "player": "SmylieKylie86",
+      "score": "961509",
+      "source": "submission"
+    },
+    {
+      "scope": "winter_2025",
+      "seasonName": "Winter 2025",
       "rank": "238",
       "player": "j2arem",
       "score": "906220",
@@ -383,6 +495,14 @@
       "rank": "22",
       "player": "jarem.",
       "score": "973293",
+      "source": "submission"
+    },
+    {
+      "scope": "winter_2026",
+      "seasonName": "Winter 2026",
+      "rank": "97",
+      "player": "SmylieKylie86",
+      "score": "960503",
       "source": "submission"
     },
     {
