@@ -1,7 +1,7 @@
 {
   "scope": "fall_2026",
   "name": "Fall 2026",
-  "updatedAt": "2026-11-07",
+  "updatedAt": "2026-11-08",
   "entries": [
     {
       "rank": "1",
@@ -587,20 +587,20 @@
     },
     {
       "rank": "98",
+      "player": "OverEasious",
+      "score": "505553",
+      "source": "ei_worker"
+    },
+    {
+      "rank": "99",
       "player": "SleepyLocomotive",
       "score": "505463",
       "source": "ei_worker"
     },
     {
-      "rank": "99",
+      "rank": "100",
       "player": "whatisthisthingiask",
       "score": "505409",
-      "source": "ei_worker"
-    },
-    {
-      "rank": "100",
-      "player": "dirtdizzy",
-      "score": "505239",
       "source": "ei_worker"
     }
   ]
