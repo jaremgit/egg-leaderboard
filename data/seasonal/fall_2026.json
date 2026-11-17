@@ -1,7 +1,7 @@
 {
   "scope": "fall_2026",
   "name": "Fall 2026",
-  "updatedAt": "2026-11-16",
+  "updatedAt": "2026-11-17",
   "entries": [
     {
       "rank": "1",
@@ -179,44 +179,44 @@
     },
     {
       "rank": "30",
+      "player": "DisapprovingCat9",
+      "score": "597926",
+      "source": "ei_worker"
+    },
+    {
+      "rank": "31",
       "player": "tlvinnie",
       "score": "597852",
       "source": "ei_worker"
     },
     {
-      "rank": "31",
+      "rank": "32",
       "player": "SpaceCowboy5150",
       "score": "597758",
       "source": "ei_worker"
     },
     {
-      "rank": "32",
+      "rank": "33",
       "player": "Halceye",
       "score": "597698",
       "source": "ei_worker"
     },
     {
-      "rank": "33",
+      "rank": "34",
       "player": "DaRuhlio",
       "score": "597487",
       "source": "ei_worker"
     },
     {
-      "rank": "34",
+      "rank": "35",
       "player": "x_Tarik_x",
       "score": "597468",
       "source": "ei_worker"
     },
     {
-      "rank": "35",
+      "rank": "36",
       "player": "ooNickMajoo",
       "score": "597411",
-      "source": "ei_worker"
-    },
-    {
-      "rank": "36",
-      "player": "DisapprovingCat9",
-      "score": "597359",
       "source": "ei_worker"
     },
     {
@@ -276,7 +276,7 @@
     {
       "rank": "46",
       "player": "vàlMajoo",
-      "score": "596930",
+      "score": "596908",
       "source": "ei_worker"
     },
     {
