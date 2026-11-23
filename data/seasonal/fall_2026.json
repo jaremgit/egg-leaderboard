@@ -1,7 +1,7 @@
 {
   "scope": "fall_2026",
   "name": "Fall 2026",
-  "updatedAt": "2026-11-22",
+  "updatedAt": "2026-11-23",
   "entries": [
     {
       "rank": "1",
@@ -137,62 +137,62 @@
     },
     {
       "rank": "23",
+      "player": "DaRuhlio",
+      "score": "669128",
+      "source": "ei_worker"
+    },
+    {
+      "rank": "24",
       "player": "Halceye",
       "score": "669057",
       "source": "ei_worker"
     },
     {
-      "rank": "24",
+      "rank": "25",
       "player": "Azzipresso",
       "score": "668969",
       "source": "ei_worker"
     },
     {
-      "rank": "25",
+      "rank": "26",
       "player": "ooJustMagma",
       "score": "668878",
       "source": "ei_worker"
     },
     {
-      "rank": "26",
+      "rank": "27",
       "player": "Suz_Extra",
       "score": "668854",
       "source": "ei_worker"
     },
     {
-      "rank": "27",
+      "rank": "28",
       "player": "DisapprovingCat9",
       "score": "668767",
       "source": "ei_worker"
     },
     {
-      "rank": "28",
+      "rank": "29",
       "player": "BobSkiMajoo778",
       "score": "668587",
       "source": "ei_worker"
     },
     {
-      "rank": "29",
+      "rank": "30",
       "player": "MrMEnglish",
       "score": "668566",
       "source": "ei_worker"
     },
     {
-      "rank": "30",
+      "rank": "31",
       "player": "ooJoobrainie",
       "score": "668487",
       "source": "ei_worker"
     },
     {
-      "rank": "31",
+      "rank": "32",
       "player": "aggiemd91",
       "score": "668479",
-      "source": "ei_worker"
-    },
-    {
-      "rank": "32",
-      "player": "DaRuhlio",
-      "score": "668471",
       "source": "ei_worker"
     },
     {
