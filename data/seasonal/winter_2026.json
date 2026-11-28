@@ -1,7 +1,7 @@
 {
   "scope": "winter_2026",
   "name": "Winter 2026",
-  "updatedAt": "2026-11-13",
+  "updatedAt": "2026-11-28",
   "entries": [
     {
       "rank": "1",
@@ -395,7 +395,7 @@
     },
     {
       "rank": "66",
-      "player": "Halceye",
+      "player": "Halceyx",
       "score": "964915",
       "source": "ei_worker"
     },
